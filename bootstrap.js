@@ -19,6 +19,8 @@ function registerAddonResourceHandler(data) {
   return "resource://" + resourceName + "/";
 }
 
+let mainModule;
+
 function install(data, reason) {}
 
 function startup(data, reason) {
@@ -45,9 +47,13 @@ function startup(data, reason) {
   });
 
   let require_ = Require(loader, { id: "./addon" });
-  require_("./main");
+  mainModule = require_("./main");
 }
 
-function shutdown(data, reason) {}
+function shutdown(data, reason) {
+  if (mainModule && mainModule.shutdown) {
+    mainModule.shutdown();
+  }
+}
 
 function uninstall(data, reason) {}

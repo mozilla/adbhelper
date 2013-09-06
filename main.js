@@ -9,6 +9,11 @@ const devtoolsRequire = devtools.require;
 const {ConnectionManager} = devtoolsRequire("devtools/client/connection-manager");
 let {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
 
+Devices.helperAddonInstalled = true;
+exports.shutdown = function() {
+  Devices.helperAddonInstalled = false;
+}
+
 adb.start().then(function () {
   adb.trackDevices();
 });
