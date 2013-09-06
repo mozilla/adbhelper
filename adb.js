@@ -379,9 +379,9 @@ const ADB = {
     );
   },
 
-  // sends adb forward tcp:aPort tcp:6000
+  // sends adb forward aLocalPort aDevicePort
   forwardPort: function adb_forwardPort(aLocalPort, aDevicePort) {
-    debug("forwardPort " + aPort);
+    debug("forwardPort " + aLocalPort + " -- " + aDevicePort);
     // <host-prefix>:forward:<local>;<remote>
 
     let promise = this.runCommand("host:forward:" + aLocalPort + ";" + aDevicePort);

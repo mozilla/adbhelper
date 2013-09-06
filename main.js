@@ -18,8 +18,10 @@ function onDeviceConnected(device) {
   Devices.register(device, {
     connect: function () {
       let port = ConnectionManager.getFreeTCPPort();
-      adb.forwardPort("tcp:" + port, "localfilesystem:/data/local/debugger-socket");
-      return port;
+      let local = "tcp:" + port;
+      let remote = "localfilesystem:/data/local/debugger-socket";
+      return adb.forwardPort(local, remote)
+                .then(() => port);
     }
   });
 }
