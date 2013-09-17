@@ -26,8 +26,9 @@ function install(data, reason) {}
 function startup(data, reason) {
   let uri = registerAddonResourceHandler(data);
 
-  let { Loader, Require, Main } = loaderModule = 
+  let loaderModule =
     Cu.import('resource://gre/modules/commonjs/toolkit/loader.js').Loader;
+  let { Loader, Require, Main } = loaderModule;
 
   const { ConsoleAPI } = Cu.import("resource://gre/modules/devtools/Console.jsm");
 

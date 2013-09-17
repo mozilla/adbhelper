@@ -294,7 +294,7 @@ const ADB = {
     }.bind(this);
 
     socket.onerror = function(event) {
-      debug("trackDevices onerror: " + event.data);
+      debug("trackDevices onerror: " + event.data.name);
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
     }
 
