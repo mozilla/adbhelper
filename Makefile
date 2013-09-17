@@ -10,7 +10,7 @@ xpi-linux: $(FILES) subprocess_worker_win.js linux
 	zip $(XPI_NAME)-linux.xpi -r $^
 
 xpi-linux64: $(FILES) subprocess_worker_unix.js linux64
-	zip $(XPI_NAME)-linux.xpi -r $^
+	zip $(XPI_NAME)-linux64.xpi -r $^
 
 xpi-mac: $(FILES) subprocess_worker_unix.js mac64
-	zip $(XPI_NAME)-linux.xpi -r $^
+	zip $(XPI_NAME)-mac.xpi -r $^
