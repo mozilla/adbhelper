@@ -12,6 +12,7 @@ let {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
 Devices.helperAddonInstalled = true;
 exports.shutdown = function() {
   Devices.helperAddonInstalled = false;
+  adb.kill(true);
 }
 
 adb.start().then(function () {

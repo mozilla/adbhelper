@@ -11,14 +11,14 @@
     <em:targetApplication>
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id>
-        <em:minVersion>25.0</em:minVersion>
-        <em:maxVersion>30.*</em:maxVersion>
+        <em:minVersion>26.0a1</em:minVersion>
+        <em:maxVersion>27.0</em:maxVersion>
       </Description>
     </em:targetApplication>
 
     <!-- Front End MetaData -->
-    <em:name>ADB helper</em:name>
-    <em:description>an addon to ease connecting to a firefox os or android device</em:description>
+    <em:name>Device connection helper</em:name>
+    <em:description>An addon to ease connecting to a Firefox OS devices</em:description>
   
   </Description>
 </RDF>
