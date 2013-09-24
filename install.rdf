@@ -2,7 +2,7 @@
 <RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:em="http://www.mozilla.org/2004/em-rdf#">
   <Description about="urn:mozilla:install-manifest">
     <em:id>adbhelper@mozilla.org</em:id>
-    <em:version>0.1</em:version>
+    <em:version>0.2.0</em:version>
     <em:type>2</em:type>
     <em:bootstrap>true</em:bootstrap>
     <em:unpack>true</em:unpack>
@@ -17,8 +17,8 @@
     </em:targetApplication>
 
     <!-- Front End MetaData -->
-    <em:name>Device connection helper</em:name>
-    <em:description>An addon to ease connecting to a Firefox OS devices</em:description>
+    <em:name>ADB Helper</em:name>
+    <em:description>An addon to ease connecting to Firefox OS devices</em:description>
   
   </Description>
 </RDF>
