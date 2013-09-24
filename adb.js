@@ -88,8 +88,7 @@ const ADB = {
       deferred.resolve();
     }).bind(this);
 
-    this._isAdbRunning().then(
-      (function onSuccess(isAdbRunning) {
+    require("./adb-running-checker").check().then((function(isAdbRunning) {
         if (isAdbRunning) {
           this.didRunInitially = false;
           debug("Found ADB process running, not restarting");

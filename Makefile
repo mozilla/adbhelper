@@ -1,4 +1,4 @@
-FILES=adb.js install.rdf bootstrap.js main.js subprocess.js
+FILES=adb.js adb-*.js install.rdf bootstrap.js main.js subprocess.js
 XPI_NAME=adbhelper
 
 all: xpi-win xpi-linux xpi-mac
