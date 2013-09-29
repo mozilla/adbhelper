@@ -32,6 +32,16 @@ try {
 }
 Cu.import("resource://gre/modules/osfile.jsm");
 
+// Workaround until bug 920586 is fixed
+// in order to allow TCPSocket usage in chrome code
+// without exposing it to content
+function createTCPSocket() {
+  let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
+  scope.DOMError = Cu.import('resource://gre/modules/Services.jsm').DOMError;
+  Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
+  scope.TCPSocket.initWindowless = function () true;
+  return new scope.TCPSocket();
+}
 
 function debug(aStr) {
   console.log("adb: " + aStr);
@@ -82,7 +92,6 @@ const ADB = {
     let deferred = Promise.defer();
     
     let onSuccessfulStart = (function onSuccessfulStart() {
-      Services.prefs.setBoolPref("dom.mozTCPSocket.enabled", true);
       Services.obs.notifyObservers(null, "adb-ready", null);
       this.ready = true;
       deferred.resolve();
@@ -228,8 +237,7 @@ const ADB = {
   // This function is sync, and returns before we know if opening the
   // connection succeeds. Callers must attach handlers to the socket.
   _connect: function adb_connect() {
-    let TCPSocket = Cc["@mozilla.org/tcp-socket;1"]
-                      .createInstance(Ci.nsIDOMTCPSocket);
+    let TCPSocket = createTCPSocket();
     let socket = TCPSocket.open(
      "127.0.0.1", 5037,
      { binaryType: "arraybuffer" });
