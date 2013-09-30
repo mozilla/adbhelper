@@ -11,3 +11,6 @@ xpi-linux: $(FILES) subprocess_worker_unix.js linux linux64
 
 xpi-mac: $(FILES) subprocess_worker_unix.js mac64
 	zip $(XPI_NAME)-mac.xpi -r $^
+
+clean:
+	-rm $(XPI_NAME)-*.xpi
