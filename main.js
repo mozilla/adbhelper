@@ -10,13 +10,25 @@ const {ConnectionManager} = devtoolsRequire("devtools/client/connection-manager"
 let {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
 
 Devices.helperAddonInstalled = true;
+
+let trackSocket;
 exports.shutdown = function() {
   Devices.helperAddonInstalled = false;
+  if (trackSocket)
+    trackSocket.close();
   adb.kill(true);
 }
 
 adb.start().then(function () {
-  adb.trackDevices();
+  trackSocket = adb.trackDevices();
+});
+
+events.on(adb, "needs-reboot", function () {
+  adb.kill(false)
+     .then(() => adb.start())
+     .then(() => {
+       trackSocket = adb.trackDevices();
+     });
 });
 
 function onDeviceConnected(device) {

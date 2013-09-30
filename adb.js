@@ -15,6 +15,7 @@ const subprocess = require("./subprocess");
 const file = require("sdk/io/file");
 const {env} = require("sdk/system/environment");
 const events = require("sdk/event/core");
+const {setTimeout, clearTimeout} = require("sdk/timers");
 const {XPCOMABI} = require("sdk/system/runtime");
 
 Cu.import("resource://gre/modules/Services.jsm");
@@ -43,14 +44,13 @@ function createTCPSocket() {
   return new scope.TCPSocket();
 }
 
+
 function debug(aStr) {
   console.log("adb: " + aStr);
 }
 
 let ready = false;
 let didRunInitially = false;
-const psRegexNix = /.*? \d+ .*? .*? \d+\s+\d+ .*? .*? .*? .*? adb .*fork\-server/;
-const psRegexWin = /adb.exe.*/;
 
 const ADB = {
   get didRunInitially() didRunInitially,
@@ -143,6 +143,8 @@ const ADB = {
    *        the update doesn't race the killing.
    */
   kill: function adb_kill(aSync) {
+    let deferred = Promise.defer();
+
     let process = Cc["@mozilla.org/process/util;1"]
                     .createInstance(Ci.nsIProcess);
     process.init(this._adb);
@@ -153,6 +155,7 @@ const ADB = {
       debug("adb kill-server: " + process.exitValue);
       this.ready = false;
       this.didRunInitially = false;
+      deferred.resolve();
     }
     else {
       let self = this;
@@ -175,61 +178,10 @@ const ADB = {
               self.didRunInitially = false;
               break;
           }
+          deferred.resolve();
         }
       }, false);
     }
-  },
-
-  _isAdbRunning: function() {
-    let deferred = Promise.defer();
-
-    let ps, args;
-    let platform = Services.appinfo.OS;
-    if (platform === "WINNT") {
-      ps = "C:\\windows\\system32\\tasklist.exe";
-      args = [];
-    } else {
-      args = ["aux"];
-      let psCommand = "ps";
-
-      let paths = env.PATH.split(':');
-      let len = paths.length;
-      for (let i = 0; i < len; i++) {
-        try {
-          let fullyQualified = file.join(paths[i], psCommand);
-          if (file.exists(fullyQualified)) {
-            ps = fullyQualified;
-            break;
-          }
-        } catch (e) {
-          // keep checking PATH if we run into NS_ERROR_FILE_UNRECOGNIZED_PATH
-        }
-      }
-      if (!ps) {
-        debug("Error: a task list executable not found on filesystem");
-        deferred.resolve(false); // default to restart adb
-        return deferred.promise;
-      }
-    }
-
-    let buffer = [];
-
-    subprocess.call({
-      command: ps,
-      arguments: args,
-      stdout: function(data) {
-        buffer.push(data);
-      },
-      done: function() {
-        let lines = buffer.join('').split('\n');
-        let regex = (platform === "WINNT") ? psRegexWin : psRegexNix;
-        let isAdbRunning = lines.some(function(line) {
-          return regex.test(line);
-        });
-        deferred.resolve(isAdbRunning);
-      }
-    });
-
     return deferred.promise;
   },
 
@@ -290,7 +242,6 @@ const ADB = {
     debug("trackDevices");
     let socket = this._connect();
     let waitForFirst = true;
-    let devices = {};
 
     socket.onopen = function() {
       debug("trackDevices onopen");
@@ -310,57 +261,79 @@ const ADB = {
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
     }
 
+    let devices = {};
+    function checkDevices(verifyOfflines) {
+      checkTimeout = null;
+      ADB.runCommand("host:devices-l")
+         .then((data) => {
+           console.log("devices-l", data);
+           let newDevices = {};
+           let lines = data.split("\n");
+           lines.forEach((line) => {
+             let m = line.match(/^([^ ]+) +([^ ]+) (usb.*)$/);
+             if (m) {
+               let [_, dev, status, usb] = m;
+               newDevices[dev] = {
+                 status: status,
+                 usb: usb
+               };
+             }
+           });
+           return newDevices;
+         })
+        .then((newDevices) => {
+          console.log("new-devices", newDevices);
+           // Check which device changed state.
+           for (let dev in devices) {
+             if (!(dev in newDevices)) {
+               events.emit(ADB, "device-disconnected", dev);
+             }
+             delete devices[dev];
+           }
+           for (let dev in newDevices) {
+             if ((!(dev in devices) || devices[dev].status != "device")
+                 && newDevices[dev].status == "device") {
+               events.emit(ADB, "device-connected", dev);
+             }
+             devices[dev] = newDevices[dev];
+           }
+         })
+        .then(() => {
+          console.log("devices", devices);
+           // Also check for devices stuck in offline state.
+           // Device start with offline state when they just get plugged,
+           // and may also briefly be in offline state when unplugged.
+           // But adb has an internal bug, where devices stay in offline state
+           // on each even start of adb server...
+           let reboot = false;
+           for (let dev in devices) {
+             if (devices[dev].status == "offline") {
+               reboot = true;
+               break;
+             }
+           }
+           if (reboot) {
+             if (verifyOfflines) {
+               events.emit(ADB, "needs-reboot");
+             } else {
+               // Retrieve the phone list again and if a phone is still in offline mode,
+               // restart adb
+               setTimeout(checkDevices, 250, true);
+             }
+           }
+         });
+    }
+    let checkTimeout;
     socket.ondata = function(aEvent) {
       debug("trackDevices ondata");
-      let data = aEvent.data;
-      debug("length=" + data.byteLength);
-      let dec = new TextDecoder();
-      debug(dec.decode(new Uint8Array(data)).trim());
-
-      // check the OKAY or FAIL on first packet.
-      if (waitForFirst) {
-        if (!this._checkResponse(data)) {
-          socket.close();
-          return;
-        }
-      }
-
-      let packet = this._unpackPacket(data, !waitForFirst);
-      waitForFirst = false;
-
-      if (packet.data == "") {
-        // All devices got disconnected.
-        for (let dev in devices) {
-          devices[dev] = false;
-          events.emit(ADB, "device-disconnected", dev);
-        }
-      } else {
-        // One line per device, each line being $DEVICE\t(offline|device)
-        let lines = packet.data.split("\n");
-        let newDev = {};
-        lines.forEach(function(aLine) {
-          if (aLine.length == 0) {
-            return;
-          }
-
-          let [dev, status] = aLine.split("\t");
-          newDev[dev] = status !== "offline";
-        });
-        // Check which device changed state.
-        for (let dev in newDev) {
-          if (devices[dev] != newDev[dev]) {
-            if (dev in devices || newDev[dev]) {
-              let topic = newDev[dev] ? "device-connected"
-                                      : "device-disconnected";
-              events.emit(ADB, topic, dev);
-            }
-            devices[dev] = newDev[dev];
-          }
-        }
-      }
-    }.bind(this);
-
-    return socket;
+      console.log("event", aEvent);
+      // When we plug a device, we usually receive an 'offline' phone state
+      // followed right after with 'device' state. Do not spam with list
+      // devices request and do only one request after a small delay
+      if (checkTimeout)
+        clearTimeout(checkTimeout);
+      checkTimeout = setTimeout(checkDevices, 1000);
+    };
   },
 
   // Sends back an array of device names.
