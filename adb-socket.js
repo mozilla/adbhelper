@@ -14,10 +14,18 @@ let { TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
 const OLD_SOCKET_API =
   Services.vc.compare(Services.appinfo.platformVersion, "23.0a1") < 0;
 
-Services.prefs.setBoolPref("dom.mozTCPSocket.enabled", true);
+// Workaround until bug 920586 is fixed
+// in order to allow TCPSocket usage in chrome code
+// without exposing it to content
+function createTCPSocket() {
+  let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
+  scope.DOMError = Cu.import('resource://gre/modules/Services.jsm').DOMError;
+  Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
+  scope.TCPSocket.prototype.initWindowless = function () true;
+  return new scope.TCPSocket();
+}
 
-let TCPSocket = Cc["@mozilla.org/tcp-socket;1"]
-                .createInstance(Ci.nsIDOMTCPSocket);
+let TCPSocket = createTCPSocket();
 
 function debug() {
   console.debug.apply(console, ["ADB: "].concat(Array.prototype.slice.call(arguments, 0)));
