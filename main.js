@@ -22,10 +22,13 @@ adb.start().then(function () {
 function onDeviceConnected(device) {
   console.log("ADBHELPER - CONNECTED: " + device);
   Devices.register(device, {
-    connect: function () {
+    connect: function (remotePort) {
       let port = ConnectionManager.getFreeTCPPort();
       let local = "tcp:" + port;
       let remote = "localfilesystem:/data/local/debugger-socket";
+      if (remotePort) {
+        remote = "tcp:" + remotePort;
+      }
       return adb.forwardPort(local, remote)
                 .then(() => port);
     }
