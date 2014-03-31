@@ -25,10 +25,11 @@ Cu.import("resource://gre/modules/Services.jsm");
 let { TextEncoder, TextDecoder } =
   Cu.import("resource://gre/modules/Services.jsm", {});
 
+let promise;
 try {
-  Cu.import("resource://gre/modules/commonjs/promise/core.js");
+  promise = Cu.import("resource://gre/modules/commonjs/promise/core.js").Promise;
 } catch (e) {
-  Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js");
+  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
 }
 Cu.import("resource://gre/modules/osfile.jsm");
 
@@ -89,7 +90,7 @@ const ADB = {
   // We startup by launching adb in server mode, and setting
   // the tcp socket preference to |true|
   start: function adb_start() {
-    let deferred = Promise.defer();
+    let deferred = promise.defer();
     
     let onSuccessfulStart = (function onSuccessfulStart() {
       Services.obs.notifyObservers(null, "adb-ready", null);
@@ -181,7 +182,7 @@ const ADB = {
   },
 
   _isAdbRunning: function() {
-    let deferred = Promise.defer();
+    let deferred = promise.defer();
 
     let ps, args;
     let platform = Services.appinfo.OS;
@@ -366,11 +367,8 @@ const ADB = {
   // Sends back an array of device names.
   listDevices: function adb_listDevices() {
     debug("listDevices");
-    let deferred = Promise.defer();
 
-    let promise = this.runCommand("host:devices");
-
-    return promise.then(
+    return this.runCommand("host:devices").then(
       function onSuccess(data) {
         let lines = data.split("\n");
         let res = [];
@@ -391,13 +389,10 @@ const ADB = {
     debug("forwardPort " + aLocalPort + " -- " + aDevicePort);
     // <host-prefix>:forward:<local>;<remote>
 
-    let promise = this.runCommand("host:forward:" + aLocalPort + ";" + aDevicePort);
-
-    return promise.then(
-      function onSuccess(data) {
-        return data;
-      }
-    );
+    return this.runCommand("host:forward:" + aLocalPort + ";" + aDevicePort)
+               .then(function onSuccess(data) {
+                 return data;
+               });
   },
 
   // Checks a file mode.
@@ -447,9 +442,6 @@ const ADB = {
   // send QUIT + hex4(0)
   pull: function adb_pull(aFrom, aDest) {
     throw "NOT_IMPLEMENTED";
-    let deferred = Promise.defer();
-
-    return deferred.promise;
   },
 
   /**
@@ -495,7 +487,7 @@ const ADB = {
   // aFrom and aDest are full paths.
   // XXX we should STAT the remote path before sending.
   push: function adb_pull(aFrom, aDest) {
-    let deferred = Promise.defer();
+    let deferred = promise.defer();
     let socket;
     let state;
     let fileSize;
@@ -630,8 +622,7 @@ const ADB = {
       }
     }
     // Stat the file, get its size.
-    let promise = OS.File.stat(aFrom);
-    promise = promise.then(
+    OS.File.stat(aFrom).then(
       function onSuccess(stat) {
         if (stat.isDir) {
           // The path represents a directory
@@ -670,7 +661,7 @@ const ADB = {
   // http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT
   runCommand: function adb_runCommand(aCommand) {
     debug("runCommand " + aCommand);
-    let deferred = Promise.defer();
+    let deferred = promise.defer();
     if (!this.ready) {
       let window = Services.wm.getMostRecentWindow("navigator:browser");
       window.setTimeout(function() { deferred.reject("ADB_NOT_READY"); });

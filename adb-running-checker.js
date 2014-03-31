@@ -12,7 +12,7 @@
 
 const { Cu, Cc, Ci } = require("chrome");
 
-const Promise = require("sdk/core/promise");
+const promise = require("sdk/core/promise");
 const client = require("./adb-client");
 
 function debug() {
@@ -20,7 +20,7 @@ function debug() {
 }
 
 exports.check = function check() {
-  let deferred = Promise.defer();
+  let deferred = promise.defer();
   let socket;
   let state;
 
