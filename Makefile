@@ -1,5 +1,5 @@
 FILES=adb.js adb-*.js bootstrap.js main.js subprocess.js
-ADDON_VERSION=0.2.4pre
+ADDON_VERSION=0.2.5pre
 XPI_NAME=adbhelper-$(ADDON_VERSION)
 
 FTP_ROOT_PATH=/pub/mozilla.org/labs/fxos-simulator/adb-helper
@@ -43,7 +43,7 @@ define release
   # Update the update manifest
 	sed -e 's#@@UPDATE_LINK@@#$(UPDATE_LINK)$1/$(XPI_NAME)-$1.xpi#;s#@@ADDON_VERSION@@#$(ADDON_VERSION)#' template-update.rdf > update.rdf
   chmod 766 update.rdf
-	scp -p update.rdf $(SSH_USER)@stage.mozilla.org:$(FTP_ROOT_PATH)/$1/update.rdf
+	scp update.rdf $(SSH_USER)@stage.mozilla.org:$(FTP_ROOT_PATH)/$1/update.rdf
 endef
 
 release: $(XPIS)
