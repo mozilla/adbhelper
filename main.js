@@ -31,7 +31,10 @@ function onDeviceConnected(device) {
       }
       return adb.forwardPort(local, remote)
                 .then(() => port);
-    }
+    },
+    shell: function(cmd) {
+      return adb.shell(cmd);
+    },
   });
 }
 

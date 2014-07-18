@@ -656,6 +656,93 @@ const ADB = {
     return deferred.promise;
   },
 
+  // Run a shell command
+  shell: function adb_shell(aCommand) {
+    let deferred = promise.defer();
+    let socket;
+    let state;
+    let stdout = "";
+
+    debug("shell " + aCommand);
+
+    let shutdown = function() {
+      debug("shell shutdown");
+      socket.close();
+      deferred.reject("BAD_RESPONSE");
+    }
+
+    let runFSM = function runFSM(aData) {
+      debug("runFSM " + state);
+      let req;
+      switch(state) {
+        case "start":
+          state = "send-transport";
+          runFSM();
+        break;
+        case "send-transport":
+          req = ADB._createRequest("host:transport-any");
+          ADB.sockSend(socket, req);
+          state = "wait-transport";
+        break
+        case "wait-transport":
+          if (!ADB._checkResponse(aData)) {
+            shutdown();
+            return;
+          }
+          state = "send-shell";
+          runFSM();
+        break
+        case "send-shell":
+          req = ADB._createRequest("shell:" + aCommand);
+          ADB.sockSend(socket, req);
+          state = "rec-shell";
+        break
+        case "rec-shell":
+          if (!ADB._checkResponse(aData)) {
+            shutdown();
+            return;
+          }
+          state = "decode-shell";
+          runFSM();
+        break;
+        case "decode-shell":
+          if (aData) {
+            let decoder = new TextDecoder();
+            let text = new Uint8Array(aData);
+            stdout += decoder.decode(text)
+          }
+        break;
+        default:
+          debug("shell Unexpected State: " + state);
+          deferred.reject("UNEXPECTED_STATE");
+      }
+    }
+
+    socket = ADB._connect();
+    socket.onerror = function(aEvent) {
+      debug("shell onerror");
+      deferred.reject("SOCKET_ERROR");
+    }
+
+    socket.onopen = function(aEvent) {
+      debug("shell onopen");
+      state = "start";
+      runFSM();
+    }
+
+    socket.onclose = function(aEvent) {
+      deferred.resolve(stdout);
+      debug("shell onclose");
+    }
+
+    socket.ondata = function(aEvent) {
+      debug("shell ondata");
+      runFSM(aEvent.data);
+    }
+
+    return deferred.promise;
+  },
+
   // Asynchronously runs an adb command.
   // @param aCommand The command as documented in
   // http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT
