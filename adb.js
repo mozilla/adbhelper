@@ -743,6 +743,79 @@ const ADB = {
     return deferred.promise;
   },
 
+  root: function adb_root() {
+    let deferred = promise.defer();
+    let socket;
+    let state;
+
+    debug("root");
+
+    let shutdown = function() {
+      debug("root shutdown");
+      socket.close();
+      deferred.reject("BAD_RESPONSE");
+    }
+
+    let runFSM = function runFSM(aData) {
+      debug("runFSM " + state);
+      let req;
+      switch(state) {
+        case "start":
+          state = "send-transport";
+          runFSM();
+        break;
+        case "send-transport":
+          req = ADB._createRequest("host:transport-any");
+          ADB.sockSend(socket, req);
+          state = "wait-transport";
+        break
+        case "wait-transport":
+          if (!ADB._checkResponse(aData)) {
+            shutdown();
+            return;
+          }
+          state = "send-root";
+          runFSM();
+        break
+        case "send-root":
+          req = ADB._createRequest("root:");
+          ADB.sockSend(socket, req);
+          state = "rec-root";
+        break
+        case "rec-root":
+          // Nothing to do
+        break;
+        default:
+          debug("root Unexpected State: " + state);
+          deferred.reject("UNEXPECTED_STATE");
+      }
+    }
+
+    socket = ADB._connect();
+    socket.onerror = function(aEvent) {
+      debug("root onerror");
+      deferred.reject("SOCKET_ERROR");
+    }
+
+    socket.onopen = function(aEvent) {
+      debug("root onopen");
+      state = "start";
+      runFSM();
+    }
+
+    socket.onclose = function(aEvent) {
+      deferred.resolve();
+      debug("root onclose");
+    }
+
+    socket.ondata = function(aEvent) {
+      debug("root ondata");
+      runFSM(aEvent.data);
+    }
+
+    return deferred.promise;
+  },
+
   // Asynchronously runs an adb command.
   // @param aCommand The command as documented in
   // http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT

@@ -9,6 +9,13 @@ const devtoolsRequire = devtools.require;
 const {ConnectionManager} = devtoolsRequire("devtools/client/connection-manager");
 let {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
 
+let promise;
+try {
+  promise = Cu.import("resource://gre/modules/commonjs/promise/core.js").Promise;
+} catch (e) {
+  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
+}
+
 Devices.helperAddonInstalled = true;
 exports.shutdown = function() {
   Devices.helperAddonInstalled = false;
@@ -34,6 +41,21 @@ function onDeviceConnected(device) {
     },
     shell: function(cmd) {
       return adb.shell(cmd);
+    },
+    isRoot: function() {
+      let deferred = promise.defer();
+      adb.shell("id").then(stdout => {
+        let uid = stdout.match(/uid=(\d+)/)[1];
+        if (uid == "0") {
+          deferred.resolve(true);
+        } else {
+          deferred.resolve(false);
+        }
+      }, deferred.reject);
+      return deferred.promise;
+    },
+    summonRoot: function() {
+      return adb.root();
     },
   });
 }
