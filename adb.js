@@ -45,7 +45,11 @@ function createTCPSocket() {
 }
 
 function debug(aStr) {
-  console.log("adb: " + aStr);
+  try {
+    if (Services.prefs.getBoolPref("extensions.adbhelper@mozilla.org.debug")) {
+      console.log("adb: " + aStr);
+    }
+  } catch(e) { }
 }
 
 let ready = false;
