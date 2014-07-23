@@ -44,12 +44,16 @@ function createTCPSocket() {
   return new scope.TCPSocket();
 }
 
+const LOGPREF = "extensions.adbhelper@mozilla.org.debug";
 function debug(aStr) {
   try {
-    if (Services.prefs.getBoolPref("extensions.adbhelper@mozilla.org.debug")) {
+    if (Services.prefs.getBoolPref(LOGPREF)) {
       console.log("adb: " + aStr);
     }
-  } catch(e) { }
+  } catch(e) {
+    // Doesn't exist yet
+    Services.prefs.setBoolPref(LOGPREF, false);
+  }
 }
 
 let ready = false;
