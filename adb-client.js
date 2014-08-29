@@ -16,10 +16,6 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 let { TextEncoder, TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
 
-function debug() {
-  console.debug.apply(console, ["ADB: "].concat(Array.prototype.slice.call(arguments, 0)));
-}
-
 const OLD_SOCKET_API =
   Services.vc.compare(Services.appinfo.platformVersion, "23.0a1") < 0;
 
@@ -30,9 +26,9 @@ let _sockets = [ ];
 // @return                A js object { length:...; data:... }
 function unpackPacket(aPacket, aIgnoreResponse) {
   let buffer = OLD_SOCKET_API ? aPacket.buffer : aPacket;
-  debug("Len buffer: " + buffer.byteLength);
+  console.debug("Len buffer: " + buffer.byteLength);
   if (buffer.byteLength === 4 && !aIgnoreResponse) {
-    debug("Packet empty");
+    console.debug("Packet empty");
     return { length: 0, data: "" };
   }
   let lengthView = new Uint8Array(buffer, aIgnoreResponse ? 0 : 4, 4);
@@ -50,9 +46,9 @@ function checkResponse(aPacket) {
   let buffer = OLD_SOCKET_API ? aPacket.buffer : aPacket;
   let view = new Uint32Array(buffer, 0 , 1);
   if (view[0] == FAIL) {
-    debug("Response: FAIL");
+    console.debug("Response: FAIL");
   }
-  debug("view[0] = " + view[0]);
+  console.debug("view[0] = " + view[0]);
   return view[0] == OKAY;
 }
 
@@ -67,7 +63,7 @@ function createRequest(aCommand) {
   }
 
   let encoder = new TextEncoder();
-  debug("Created request: " + length + aCommand);
+  console.debug("Created request: " + length + aCommand);
   return encoder.encode(length + aCommand);
 }
 

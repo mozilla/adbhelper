@@ -27,10 +27,6 @@ function createTCPSocket() {
 
 let TCPSocket = createTCPSocket();
 
-function debug() {
-  console.debug.apply(console, ["ADB: "].concat(Array.prototype.slice.call(arguments, 0)));
-}
-
 // Creates a socket connected to the adb instance.
 // This instantiation is sync, and returns before we know if opening the
 // connection succeeds. Callers must attach handlers to the s field.
@@ -69,7 +65,7 @@ let AdbSocket = Class({
         dbg += s[i];
       }
     }
-    debug(dbg);
+    console.debug(dbg);
   },
 
   // debugging version of tcpsocket.send()

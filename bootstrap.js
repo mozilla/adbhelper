@@ -30,23 +30,55 @@ function startup(data, reason) {
     Cu.import('resource://gre/modules/commonjs/toolkit/loader.js').Loader;
   let { Loader, Require, Main } = loaderModule;
 
-  const { ConsoleAPI } = Cu.import("resource://gre/modules/devtools/Console.jsm");
-
-  let loader = Loader({
+  let loaderOptions = {
     paths: {
       "./": uri,
       "": "resource://gre/modules/commonjs/"
     },
-    globals: {
-      console: new ConsoleAPI({
-        prefix: data.id
-      })
-    },
     modules: {
       "toolkit/loader": loaderModule
     }
-  });
+  };
 
+  /**
+   * setup a console object that only dumps messages if
+   * LOGPREF is true
+   */
+
+  const LOGPREF = "extensions.adbhelper@mozilla.org.debug";
+  const LOGPREFIX = "ADB Addon Helper:";
+
+  try {
+    Services.prefs.getBoolPref(LOGPREF);
+  } catch(e) {
+    // Doesn't exist yet
+    Services.prefs.setBoolPref(LOGPREF, false);
+  }
+
+  function canLog() {
+    return Services.prefs.getBoolPref(LOGPREF);
+  }
+
+  const { ConsoleAPI } = Cu.import("resource://gre/modules/devtools/Console.jsm");
+  let _console = new ConsoleAPI();
+  loaderOptions.globals = {
+    console: {
+      log: function(...args) {
+        canLog() && _console.log(LOGPREFIX, ...args);
+      },
+      warn: function(...args) {
+        canLog() && _console.warn(LOGPREFIX, ...args);
+      },
+      error: function(...args) {
+        canLog() && _console.error(LOGPREFIX, ...args);
+      },
+      debug: function(...args) {
+        canLog() && _console.debug(LOGPREFIX, ...args);
+      }
+    }
+  }
+
+  let loader = Loader(loaderOptions);
   let require_ = Require(loader, { id: "./addon" });
   mainModule = require_("./main");
 }
