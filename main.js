@@ -42,6 +42,9 @@ function onDeviceConnected(device) {
     shell: function(cmd) {
       return adb.shell(cmd);
     },
+    forwardPort: function(local, remote) {
+      return adb.forwardPort(local, remote);
+    },
     isRoot: function() {
       let deferred = promise.defer();
       adb.shell("id").then(stdout => {
