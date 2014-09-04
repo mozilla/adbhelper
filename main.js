@@ -27,7 +27,7 @@ adb.start().then(function () {
 });
 
 function onDeviceConnected(device) {
-  console.log("ADBHELPER - CONNECTED: " + device);
+  console.log("CONNECTED: " + device);
   Devices.register(device, {
     connect: function (remotePort) {
       let port = ConnectionManager.getFreeTCPPort();
@@ -63,6 +63,6 @@ function onDeviceConnected(device) {
 events.on(adb, "device-connected", onDeviceConnected);
 
 events.on(adb, "device-disconnected", function (device) {
-  console.log("ADBHELPER - DISCONNECTED: " + device);
+  console.log("DISCONNECTED: " + device);
   Devices.unregister(device);
 });

@@ -15,19 +15,15 @@ const { Cu, Cc, Ci } = require("chrome");
 const promise = require("sdk/core/promise");
 const client = require("./adb-client");
 
-function debug() {
-  console.debug.apply(console, ["ADB: "].concat(Array.prototype.slice.call(arguments, 0)));
-}
-
 exports.check = function check() {
   let deferred = promise.defer();
   let socket;
   let state;
 
-  debug("Asking for host:version");
+  console.debug("Asking for host:version");
 
   let runFSM = function runFSM(aData) {
-    debug("runFSM " + state);
+    console.debug("runFSM " + state);
     switch(state) {
       case "start":
         let req = client.createRequest("host:version");
@@ -38,34 +34,34 @@ exports.check = function check() {
         // TODO: Actually check the version number to make sure the daemon
         //       supports the commands we want to use
         let { length, data } = client.unpackPacket(aData);
-        debug("length: ", length, "data: ", data);
+        console.debug("length: ", length, "data: ", data);
         socket.close();
         deferred.resolve(data.indexOf("001f") != -1);
         break;
       default:
-        debug("Unexpected State: " + state);
+        console.debug("Unexpected State: " + state);
         deferred.resolve(false);
     }
   };
 
   let setupSocket = function() {
     socket.s.onerror = function(aEvent) {
-      debug("running checker onerror");
+      console.debug("running checker onerror");
       deferred.resolve(false);
     };
 
     socket.s.onopen = function(aEvent) {
-      debug("running checker onopen");
+      console.debug("running checker onopen");
       state = "start";
       runFSM();
     }
 
     socket.s.onclose = function(aEvent) {
-      debug("running checker onclose");
+      console.debug("running checker onclose");
     };
 
     socket.s.ondata = function(aEvent) {
-      debug("running checker ondata");
+      console.debug("running checker ondata");
       runFSM(aEvent.data);
     };
   };

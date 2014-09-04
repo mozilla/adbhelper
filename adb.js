@@ -44,18 +44,6 @@ function createTCPSocket() {
   return new scope.TCPSocket();
 }
 
-const LOGPREF = "extensions.adbhelper@mozilla.org.debug";
-function debug(aStr) {
-  try {
-    if (Services.prefs.getBoolPref(LOGPREF)) {
-      console.log("adb: " + aStr);
-    }
-  } catch(e) {
-    // Doesn't exist yet
-    Services.prefs.setBoolPref(LOGPREF, false);
-  }
-}
-
 let ready = false;
 let didRunInitially = false;
 const psRegexNix = /.*? \d+ .*? .*? \d+\s+\d+ .*? .*? .*? .*? adb .*fork\-server/;
@@ -68,7 +56,7 @@ const ADB = {
   set ready(newVal) { ready = newVal },
 
   init: function adb_init() {
-    debug("init");
+    console.log("init");
     let platform = Services.appinfo.OS;
 
     let uri = "resource://adbhelperatmozilla.org/";
@@ -86,7 +74,7 @@ const ADB = {
         bin = uri + "win32/adb.exe";
         break;
       default:
-        debug("Unsupported platform : " + platform);
+        console.log("Unsupported platform : " + platform);
         return;
     }
 
@@ -109,11 +97,11 @@ const ADB = {
     require("./adb-running-checker").check().then((function(isAdbRunning) {
         if (isAdbRunning) {
           this.didRunInitially = false;
-          debug("Found ADB process running, not restarting");
+          console.log("Found ADB process running, not restarting");
           onSuccessfulStart();
           return;
         }
-        debug("Didn't find ADB process running, restarting");
+        console.log("Didn't find ADB process running, restarting");
 
         this.didRunInitially = true;
         let process = Cc["@mozilla.org/process/util;1"]
@@ -159,7 +147,7 @@ const ADB = {
 
     if (aSync) {
       process.run(true, params, params.length);
-      debug("adb kill-server: " + process.exitValue);
+      console.log("adb kill-server: " + process.exitValue);
       this.ready = false;
       this.didRunInitially = false;
     }
@@ -169,13 +157,13 @@ const ADB = {
         observe: function(aSubject, aTopic, aData) {
           switch(aTopic) {
             case "process-finished":
-              debug("adb kill-server: " + process.exitValue);
+              console.log("adb kill-server: " + process.exitValue);
               Services.obs.notifyObservers(null, "adb-killed", null);
               self.ready = false;
               self.didRunInitially = false;
               break;
             case "process-failed":
-              debug("adb kill-server failure: " + process.exitValue);
+              console.log("adb kill-server failure: " + process.exitValue);
               // It's hard to say whether or not ADB is ready at this point,
               // but it seems safer to assume that it isn't, so code that wants
               // to use it later will try to restart it.
@@ -215,7 +203,7 @@ const ADB = {
         }
       }
       if (!ps) {
-        debug("Error: a task list executable not found on filesystem");
+        console.log("Error: a task list executable not found on filesystem");
         deferred.resolve(false); // default to restart adb
         return deferred.promise;
       }
@@ -275,7 +263,7 @@ const ADB = {
     let buffer = aPacket;
     let view = new Uint32Array(buffer, 0 , 1);
     if (view[0] == FAIL) {
-      debug("Response: FAIL");
+      console.log("Response: FAIL");
     }
     return view[0] == OKAY;
   },
@@ -296,13 +284,13 @@ const ADB = {
   // We can't reuse runCommand here because we keep the socket alive.
   // @return The socket used.
   trackDevices: function adb_trackDevices() {
-    debug("trackDevices");
+    console.log("trackDevices");
     let socket = this._connect();
     let waitForFirst = true;
     let devices = {};
 
     socket.onopen = function() {
-      debug("trackDevices onopen");
+      console.log("trackDevices onopen");
       Services.obs.notifyObservers(null, "adb-track-devices-start", null);
       let req = this._createRequest("host:track-devices");
       ADB.sockSend(socket, req);
@@ -310,21 +298,21 @@ const ADB = {
     }.bind(this);
 
     socket.onerror = function(event) {
-      debug("trackDevices onerror: " + event.data.name);
+      console.log("trackDevices onerror: " + event.data.name);
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
     }
 
     socket.onclose = function() {
-      debug("trackDevices onclose");
+      console.log("trackDevices onclose");
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
     }
 
     socket.ondata = function(aEvent) {
-      debug("trackDevices ondata");
+      console.log("trackDevices ondata");
       let data = aEvent.data;
-      debug("length=" + data.byteLength);
+      console.log("length=" + data.byteLength);
       let dec = new TextDecoder();
-      debug(dec.decode(new Uint8Array(data)).trim());
+      console.log(dec.decode(new Uint8Array(data)).trim());
 
       // check the OKAY or FAIL on first packet.
       if (waitForFirst) {
@@ -374,7 +362,7 @@ const ADB = {
 
   // Sends back an array of device names.
   listDevices: function adb_listDevices() {
-    debug("listDevices");
+    console.log("listDevices");
 
     return this.runCommand("host:devices").then(
       function onSuccess(data) {
@@ -394,7 +382,7 @@ const ADB = {
 
   // sends adb forward aLocalPort aDevicePort
   forwardPort: function adb_forwardPort(aLocalPort, aDevicePort) {
-    debug("forwardPort " + aLocalPort + " -- " + aDevicePort);
+    console.log("forwardPort " + aLocalPort + " -- " + aDevicePort);
     // <host-prefix>:forward:<local>;<remote>
 
     return this.runCommand("host:forward:" + aLocalPort + ";" + aDevicePort)
@@ -481,7 +469,7 @@ const ADB = {
         dbg += s[i];
       }
     }
-    debug(dbg);
+    console.log(dbg);
   },
 
   // debugging version of tcpsocket.send()
@@ -504,16 +492,16 @@ const ADB = {
     let currentPos = 0;
     let fileTime;
 
-    debug("pushing " + aFrom + " -> " + aDest);
+    console.log("pushing " + aFrom + " -> " + aDest);
 
     let shutdown = function() {
-      debug("push shutdown");
+      console.log("push shutdown");
       socket.close();
       deferred.reject("BAD_RESPONSE");
     }
 
     let runFSM = function runFSM(aData) {
-      debug("runFSM " + state);
+      console.log("runFSM " + state);
       let req;
       switch(state) {
         case "start":
@@ -530,7 +518,7 @@ const ADB = {
             shutdown();
             return;
           }
-          debug("transport: OK");
+          console.log("transport: OK");
           state = "send-sync";
           runFSM();
           break
@@ -544,7 +532,7 @@ const ADB = {
             shutdown();
             return;
           }
-          debug("sync: OK");
+          console.log("sync: OK");
           state = "send-send";
           runFSM();
           break
@@ -563,7 +551,7 @@ const ADB = {
           // now sending file data.
           while (remaining > 0) {
             let toSend = remaining > 65536 ? 65536 : remaining;
-            debug("Sending " + toSend + " bytes");
+            console.log("Sending " + toSend + " bytes");
 
             let dataLengthPacket = new Uint32Array(1);
             // We have to create a new ArrayBuffer for the fileData slice
@@ -594,7 +582,7 @@ const ADB = {
             shutdown();
             return;
           }
-          debug("DONE: OK");
+          console.log("DONE: OK");
           state = "end";
           runFSM();
           break;
@@ -603,29 +591,29 @@ const ADB = {
           deferred.resolve("SUCCESS");
           break;
         default:
-          debug("push Unexpected State: " + state);
+          console.log("push Unexpected State: " + state);
           deferred.reject("UNEXPECTED_STATE");
       }
     }
 
     let setupSocket = function() {
       socket.onerror = function(aEvent) {
-        debug("push onerror");
+        console.log("push onerror");
         deferred.reject("SOCKET_ERROR");
       }
 
       socket.onopen = function(aEvent) {
-        debug("push onopen");
+        console.log("push onopen");
         state = "start";
         runFSM();
       }
 
       socket.onclose = function(aEvent) {
-        debug("push onclose");
+        console.log("push onclose");
       }
 
       socket.ondata = function(aEvent) {
-        debug("push ondata");
+        console.log("push ondata");
         runFSM(aEvent.data);
       }
     }
@@ -641,7 +629,7 @@ const ADB = {
           // We want seconds since epoch
           fileTime = stat.lastModificationDate.getTime() / 1000;
           remaining = fileSize;
-          debug(aFrom + " size is " + fileSize);
+          console.log(aFrom + " size is " + fileSize);
           let readPromise = OS.File.read(aFrom);
           readPromise.then(
             function readSuccess(aData) {
@@ -656,7 +644,7 @@ const ADB = {
         }
       },
       function onFailure(reason) {
-        debug(reason);
+        console.log(reason);
         deferred.reject("CANT_ACCESS_FILE");
       }
     );
@@ -671,16 +659,16 @@ const ADB = {
     let state;
     let stdout = "";
 
-    debug("shell " + aCommand);
+    console.log("shell " + aCommand);
 
     let shutdown = function() {
-      debug("shell shutdown");
+      console.log("shell shutdown");
       socket.close();
       deferred.reject("BAD_RESPONSE");
     }
 
     let runFSM = function runFSM(aData) {
-      debug("runFSM " + state);
+      console.log("runFSM " + state);
       let req;
       switch(state) {
         case "start":
@@ -721,30 +709,30 @@ const ADB = {
           }
         break;
         default:
-          debug("shell Unexpected State: " + state);
+          console.log("shell Unexpected State: " + state);
           deferred.reject("UNEXPECTED_STATE");
       }
     }
 
     socket = ADB._connect();
     socket.onerror = function(aEvent) {
-      debug("shell onerror");
+      console.log("shell onerror");
       deferred.reject("SOCKET_ERROR");
     }
 
     socket.onopen = function(aEvent) {
-      debug("shell onopen");
+      console.log("shell onopen");
       state = "start";
       runFSM();
     }
 
     socket.onclose = function(aEvent) {
       deferred.resolve(stdout);
-      debug("shell onclose");
+      console.log("shell onclose");
     }
 
     socket.ondata = function(aEvent) {
-      debug("shell ondata");
+      console.log("shell ondata");
       runFSM(aEvent.data);
     }
 
@@ -756,16 +744,16 @@ const ADB = {
     let socket;
     let state;
 
-    debug("root");
+    console.log("root");
 
     let shutdown = function() {
-      debug("root shutdown");
+      console.log("root shutdown");
       socket.close();
       deferred.reject("BAD_RESPONSE");
     }
 
     let runFSM = function runFSM(aData) {
-      debug("runFSM " + state);
+      console.log("runFSM " + state);
       let req;
       switch(state) {
         case "start":
@@ -794,30 +782,30 @@ const ADB = {
           // Nothing to do
         break;
         default:
-          debug("root Unexpected State: " + state);
+          console.log("root Unexpected State: " + state);
           deferred.reject("UNEXPECTED_STATE");
       }
     }
 
     socket = ADB._connect();
     socket.onerror = function(aEvent) {
-      debug("root onerror");
+      console.log("root onerror");
       deferred.reject("SOCKET_ERROR");
     }
 
     socket.onopen = function(aEvent) {
-      debug("root onopen");
+      console.log("root onopen");
       state = "start";
       runFSM();
     }
 
     socket.onclose = function(aEvent) {
       deferred.resolve();
-      debug("root onclose");
+      console.log("root onclose");
     }
 
     socket.ondata = function(aEvent) {
-      debug("root ondata");
+      console.log("root ondata");
       runFSM(aEvent.data);
     }
 
@@ -828,7 +816,7 @@ const ADB = {
   // @param aCommand The command as documented in
   // http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT
   runCommand: function adb_runCommand(aCommand) {
-    debug("runCommand " + aCommand);
+    console.log("runCommand " + aCommand);
     let deferred = promise.defer();
     if (!this.ready) {
       let window = Services.wm.getMostRecentWindow("navigator:browser");
@@ -841,29 +829,29 @@ const ADB = {
     let devices = {};
 
     socket.onopen = function() {
-      debug("runCommand onopen");
+      console.log("runCommand onopen");
       let req = this._createRequest(aCommand);
       ADB.sockSend(socket, req);
 
     }.bind(this);
 
     socket.onerror = function() {
-      debug("runCommand onerror");
+      console.log("runCommand onerror");
       deferred.reject("NETWORK_ERROR");
     }
 
     socket.onclose = function() {
-      debug("runCommand onclose");
+      console.log("runCommand onclose");
     }
 
     socket.ondata = function(aEvent) {
-      debug("runCommand ondata");
+      console.log("runCommand ondata");
       let data = aEvent.data;
 
       if (!this._checkResponse(data)) {
         socket.close();
         let packet = this._unpackPacket(data, false);
-        debug("Error: " + packet.data);
+        console.log("Error: " + packet.data);
         deferred.reject("PROTOCOL_ERROR");
         return;
       }
