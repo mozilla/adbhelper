@@ -128,6 +128,21 @@ const ADB = {
   },
 
   /**
+   * Stop the ADB server, but only if we started it.  If it was started before
+   * us, we return immediately.
+   *
+   * @param boolean sync
+   *        In case, we do need to kill the server, this param is passed through
+   *        to kill to determine whether it's a sync operation.
+   */
+  stop: function(sync) {
+    if (!this.didRunInitially) {
+      return; // We didn't start the server, nothing to do
+    }
+    this.kill(sync);
+  },
+
+  /**
    * Kill the ADB server.  We do this by running ADB again, passing it
    * the "kill-server" argument.
    *

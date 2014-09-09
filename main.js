@@ -19,7 +19,7 @@ try {
 Devices.helperAddonInstalled = true;
 exports.shutdown = function() {
   Devices.helperAddonInstalled = false;
-  adb.kill(true);
+  adb.stop(true);
 }
 
 adb.start().then(function () {
