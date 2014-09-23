@@ -497,7 +497,7 @@ const ADB = {
   // pushes a file to the device.
   // aFrom and aDest are full paths.
   // XXX we should STAT the remote path before sending.
-  push: function adb_pull(aFrom, aDest) {
+  push: function adb_push(aFrom, aDest) {
     let deferred = promise.defer();
     let socket;
     let state;
