@@ -48,6 +48,9 @@ function onDeviceConnected(device) {
     push: function(aFrom, aDest) {
       return adb.push(aFrom, aDest);
     },
+    pull: function(aFrom, aDest) {
+      return adb.pull(aFrom, aDest);
+    },
     isRoot: function() {
       let deferred = promise.defer();
       adb.shell("id").then(stdout => {

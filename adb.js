@@ -49,6 +49,12 @@ let didRunInitially = false;
 const psRegexNix = /.*? \d+ .*? .*? \d+\s+\d+ .*? .*? .*? .*? adb .*fork\-server/;
 const psRegexWin = /adb.exe.*/;
 
+const OKAY = 0x59414b4f;
+const FAIL = 0x4c494146;
+const STAT = 0x54415453;
+const DATA = 0x41544144;
+const DONE = 0x454e4f44;
+
 const ADB = {
   get didRunInitially() didRunInitially,
   set didRunInitially(newVal) { didRunInitially = newVal },
@@ -270,17 +276,15 @@ const ADB = {
     return encoder.encode(length + aCommand);
   },
 
-  // Checks if the response is OKAY or FAIL.
-  // @return true for OKAY, false for FAIL.
-  _checkResponse: function adb_checkResponse(aPacket) {
-    const OKAY = 0x59414b4f; // OKAY
-    const FAIL = 0x4c494146; // FAIL
+  // Checks if the response is expected.
+  // @return true if response equals expected.
+  _checkResponse: function adb_checkResponse(aPacket, expected) {
     let buffer = aPacket;
     let view = new Uint32Array(buffer, 0 , 1);
     if (view[0] == FAIL) {
       console.log("Response: FAIL");
     }
-    return view[0] == OKAY;
+    return view[0] == expected;
   },
 
   // @param aPacket         The packet to get the length from.
@@ -331,7 +335,7 @@ const ADB = {
 
       // check the OKAY or FAIL on first packet.
       if (waitForFirst) {
-        if (!this._checkResponse(data)) {
+        if (!this._checkResponse(data, OKAY)) {
           socket.close();
           return;
         }
@@ -452,7 +456,254 @@ const ADB = {
   // recv DONE + hex4(0)
   // send QUIT + hex4(0)
   pull: function adb_pull(aFrom, aDest) {
-    throw "NOT_IMPLEMENTED";
+    let deferred = promise.defer();
+    let socket;
+    let state;
+    let fileSize;
+    let fileData;
+    let remaining;
+    let currentPos = 0;
+    let chunkSize;
+    let pkgData;
+    let headerArray;
+    let currentHeaderLength;
+
+    let encoder = new TextEncoder();
+    let view;
+    let infoLengthPacket;
+
+    console.log("pulling " + aFrom + " -> " + aDest);
+
+    let shutdown = function() {
+      console.log("pull shutdown");
+      socket.close();
+      deferred.reject("BAD_RESPONSE");
+    }
+
+    // extract chunk data header info. to headerArray.
+    let extractChunkDataHeader = function(data) {
+      let tmpArray = new Uint8Array(headerArray.buffer);
+      for (let i = 0; i < 8 - currentHeaderLength; i++) {
+        tmpArray[currentHeaderLength + i] = data[i];
+      }
+    }
+
+    // chunk data header is 8 bytes length,
+    // the first 4 bytes: hex4("DATA"), and
+    // the second 4 bytes: hex4(chunk size)
+    let checkChunkDataHeader = function(data) {
+      if (data.length + currentHeaderLength >= 8) {
+        extractChunkDataHeader(data);
+
+        if (headerArray[0] != DATA) {
+          shutdown();
+          return false;
+        }
+        // remove header info. from socket package data
+        pkgData = data.subarray(8 - currentHeaderLength, data.length);
+        chunkSize = headerArray[1];
+        currentHeaderLength = 0;
+        return true;
+      }
+
+      // If chunk data header info. is separated into more than one
+      // socket package, keep partial header info. in headerArray.
+      let tmpArray = new Uint8Array(headerArray.buffer);
+      for (let i = 0; i < data.length; i++) {
+        tmpArray[currentHeaderLength + i] = data[i];
+      }
+      currentHeaderLength += data.length;
+      return true;
+    }
+
+    // The last remaining package data contains 8 bytes,
+    // they are "DONE(0x454e4f44)" and 0x0000.
+    let checkDone = function(data) {
+      if (remaining != 0 || data.length != 8) {
+        return false;
+      }
+
+      let doneFlagArray = new Uint32Array(1);
+      let tmpArray = new Uint8Array(doneFlagArray.buffer);
+      for (let i = 0; i < 4; i++) {
+        tmpArray[i] = data[i];
+      }
+      // Check DONE flag
+      if (doneFlagArray[0] == DONE) {
+        return true;
+      }
+      return false;
+    }
+
+    let runFSM = function runFSM(aData) {
+      console.log("runFSM " + state);
+      let req;
+      switch(state) {
+        case "start":
+          state = "send-transport";
+          runFSM();
+          break;
+        case "send-transport":
+          req = ADB._createRequest("host:transport-any");
+          ADB.sockSend(socket, req);
+          state = "wait-transport";
+          break;
+        case "wait-transport":
+          if (!ADB._checkResponse(aData, OKAY)) {
+            shutdown();
+            return;
+          }
+          console.log("transport: OK");
+          state = "send-sync";
+          runFSM();
+          break;
+        case "send-sync":
+          req = ADB._createRequest("sync:");
+          ADB.sockSend(socket, req);
+          state = "wait-sync";
+          break;
+        case "wait-sync":
+          if (!ADB._checkResponse(aData, OKAY)) {
+            shutdown();
+            return;
+          }
+          console.log("sync: OK");
+          state = "send-stat";
+          runFSM();
+          break;
+        case "send-stat":
+          infoLengthPacket = new Uint32Array(1);
+          infoLengthPacket[0] = aFrom.length;
+          ADB.sockSend(socket, encoder.encode("STAT"));
+          ADB.sockSend(socket, infoLengthPacket);
+          ADB.sockSend(socket, encoder.encode(aFrom));
+
+          state = "wait-stat";
+          break;
+        case "wait-stat":
+          if (!ADB._checkResponse(aData, STAT)) {
+            shutdown();
+            return;
+          }
+          view = new Uint32Array(aData);
+          // view contains 4 elements of 32 bit;
+          // the first element is hex "STAT"
+          // the second one is file mode
+          // the third one is file length
+          // and the last one is file time (lastModified?)
+          fileSize = view[2];
+          chunkSize = 0;
+          remaining = fileSize;
+          fileData = new Uint8Array(new ArrayBuffer(fileSize));
+          headerArray = new Uint32Array(2);
+          currentPos = 0;
+          currentHeaderLength = 0;
+          console.log("stat: OK");
+          state = "send-recv";
+          runFSM();
+          break;
+        case "send-recv":
+          infoLengthPacket = new Uint32Array(1);
+          infoLengthPacket[0] = aFrom.length;
+          ADB.sockSend(socket, encoder.encode("RECV"));
+          ADB.sockSend(socket, infoLengthPacket);
+          ADB.sockSend(socket, encoder.encode(aFrom));
+
+          state = "wait-recv";
+          break;
+        case "wait-recv":
+          // After sending "RECV" command, adb server will send chunks data back,
+          // Handle every single socket package here.
+          // Note: One socket package maybe contain many chunks, and often
+          // partial chunk at the end.
+          pkgData = new Uint8Array(aData);
+
+          // Handle all data in a single socket package.
+          while(pkgData.length > 0) {
+            if (chunkSize == 0 && checkDone(pkgData)) {
+              OS.File.writeAtomic(aDest, fileData, {}).then(
+                function onSuccess(number) {
+                  console.log(number);
+                  deferred.resolve("SUCCESS");
+                },
+                function onFailure(reason) {
+                  console.log(reason);
+                  deferred.reject("CANT_ACCESS_FILE");
+                }
+              );
+
+              state = "send-quit";
+              runFSM();
+              return;
+            }
+            if (chunkSize == 0 && !checkChunkDataHeader(pkgData)) {
+              shutdown();
+              return;
+            }
+            // handle full chunk
+            if (chunkSize > 0 && pkgData.length >= chunkSize) {
+              let chunkData = pkgData.subarray(0, chunkSize);
+              fileData.set(chunkData, currentPos);
+              pkgData = pkgData.subarray(chunkSize, pkgData.length);
+              currentPos += chunkSize;
+              remaining -= chunkSize;
+              chunkSize = 0;
+            }
+            // handle partial chunk at the end of socket package
+            if (chunkSize > 0 && pkgData.length < chunkSize) {
+              fileData.set(pkgData, currentPos);
+              currentPos += pkgData.length;
+              remaining -= pkgData.length;
+              chunkSize -= pkgData.length;
+              break; // Break while loop.
+            }
+          }
+
+          break;
+        case "send-quit":
+          infoLengthPacket = new Uint32Array(1);
+          infoLengthPacket[0] = 0;
+          ADB.sockSend(socket, encoder.encode("QUIT"));
+          ADB.sockSend(socket, infoLengthPacket);
+
+          state = "end";
+          runFSM();
+          break;
+        case "end":
+          socket.close();
+          break;
+        default:
+          console.log("pull Unexpected State: " + state);
+          deferred.reject("UNEXPECTED_STATE");
+      }
+    }
+
+    let setupSocket = function() {
+      socket.onerror = function(aEvent) {
+        console.log("pull onerror");
+        deferred.reject("SOCKET_ERROR");
+      }
+
+      socket.onopen = function(aEvent) {
+        console.log("pull onopen");
+        state = "start";
+        runFSM();
+      }
+
+      socket.onclose = function(aEvent) {
+        console.log("pull onclose");
+      }
+
+      socket.ondata = function(aEvent) {
+        console.log("pull ondata:");
+        runFSM(aEvent.data);
+      }
+    }
+
+    socket = ADB._connect();
+    setupSocket();
+
+    return deferred.promise;
   },
 
   /**
@@ -529,7 +780,7 @@ const ADB = {
           state = "wait-transport";
           break
         case "wait-transport":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -543,7 +794,7 @@ const ADB = {
           state = "wait-sync";
           break
         case "wait-sync":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -593,7 +844,7 @@ const ADB = {
           state = "wait-done";
           break;
         case "wait-done":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -696,7 +947,7 @@ const ADB = {
           state = "wait-transport";
         break
         case "wait-transport":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -709,7 +960,7 @@ const ADB = {
           state = "rec-shell";
         break
         case "rec-shell":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -781,7 +1032,7 @@ const ADB = {
           state = "wait-transport";
         break
         case "wait-transport":
-          if (!ADB._checkResponse(aData)) {
+          if (!ADB._checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -863,7 +1114,7 @@ const ADB = {
       console.log("runCommand ondata");
       let data = aEvent.data;
 
-      if (!this._checkResponse(data)) {
+      if (!this._checkResponse(data, OKAY)) {
         socket.close();
         let packet = this._unpackPacket(data, false);
         console.log("Error: " + packet.data);
