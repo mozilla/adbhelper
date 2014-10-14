@@ -3,6 +3,9 @@ const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
+const REASON = [ 'unknown', 'startup', 'shutdown', 'enable', 'disable',
+                 'install', 'uninstall', 'upgrade', 'downgrade' ];
+
 // Usefull piece of code from :bent
 // http://mxr.mozilla.org/mozilla-central/source/dom/workers/test/extensions/bootstrap/bootstrap.js
 function registerAddonResourceHandler(data) {
@@ -20,6 +23,8 @@ function registerAddonResourceHandler(data) {
 }
 
 let mainModule;
+let loader;
+let unload;
 
 function install(data, reason) {}
 
@@ -29,6 +34,7 @@ function startup(data, reason) {
   let loaderModule =
     Cu.import('resource://gre/modules/commonjs/toolkit/loader.js').Loader;
   let { Loader, Require, Main } = loaderModule;
+  unload = loaderModule.unload;
 
   let loaderOptions = {
     paths: {
@@ -78,12 +84,17 @@ function startup(data, reason) {
     }
   }
 
-  let loader = Loader(loaderOptions);
+  loader = Loader(loaderOptions);
   let require_ = Require(loader, { id: "./addon" });
   mainModule = require_("./main");
 }
 
-function shutdown(data, reason) {
+function shutdown(data, reasonCode) {
+  let reason = REASON[reasonCode];
+  if (loader) {
+    unload(loader, reason);
+    unload = null;
+  }
   if (mainModule && mainModule.shutdown) {
     mainModule.shutdown();
   }
