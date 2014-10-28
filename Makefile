@@ -1,4 +1,4 @@
-FILES=adb.js adb-*.js bootstrap.js main.js subprocess.js
+FILES=adb.js adb-*.js bootstrap.js main.js scanner.js subprocess.js
 ADDON_VERSION=0.6.1pre
 XPI_NAME=adbhelper-$(ADDON_VERSION)
 
