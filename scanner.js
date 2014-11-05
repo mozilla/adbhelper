@@ -117,8 +117,12 @@ FirefoxOSRuntime.detect = Task.async(function*(device, model) {
   let b2gExists = yield device.shell(query);
   // XXX: Sometimes we get an empty response back.  Likely a bug in our shell
   // code in this add-on.
-  while (b2gExists.length != 3) {
+  // There are also some Android devices that do not have `test` installed.
+  for (let attempts = 3; attempts > 0; attempts--) {
     b2gExists = yield device.shell(query);
+    if (b2gExists.length == 3) {
+      break;
+    }
   }
   if (b2gExists === "0\r\n") {
     let runtime = new FirefoxOSRuntime(device, model);
