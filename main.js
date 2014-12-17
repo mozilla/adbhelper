@@ -4,6 +4,21 @@ let adb = require("./adb");
 const events = require("sdk/event/core");
 
 const {devtools} = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
+
+const system = require("sdk/system");
+// Bug 1091706: devtools.require from Firefox 34 is vulnerable to a race
+// condition that can lead to mutiple loaders being created unexpectedly.
+// Patch it up here, as this code runs at startup, and is thus likely to be the
+// first to call devtools.require.
+if (system.version.startsWith("34.")) {
+  devtools.require = function() {
+    if (!this._provider) {
+      this._chooseProvider();
+    }
+    return this.require.apply(this, arguments);
+  }.bind(devtools);
+}
+
 const devtoolsRequire = devtools.require;
 const {ConnectionManager} = devtoolsRequire("devtools/client/connection-manager");
 let {Devices} = Cu.import("resource://gre/modules/devtools/Devices.jsm");
