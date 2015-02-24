@@ -36,7 +36,13 @@ exports.check = function check() {
         let { length, data } = client.unpackPacket(aData);
         console.debug("length: ", length, "data: ", data);
         socket.close();
-        deferred.resolve(data.indexOf("001f") != -1);
+        let version = parseInt(data, "16");
+        if (version >= 31) {
+          deferred.resolve(true);
+        } else {
+          console.log("killing existing adb as we need version >= 31");
+          deferred.resolve(false);
+        }
         break;
       default:
         console.debug("Unexpected State: " + state);
