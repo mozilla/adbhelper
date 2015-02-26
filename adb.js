@@ -16,6 +16,7 @@ const file = require("sdk/io/file");
 const {env} = require("sdk/system/environment");
 const events = require("sdk/event/core");
 const {XPCOMABI} = require("sdk/system/runtime");
+const {setTimeout} = require("sdk/timers");
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -323,7 +324,26 @@ const ADB = {
 
     socket.onclose = function() {
       console.log("trackDevices onclose");
+
+      // Report all devices as disconnected
+      for (let dev in devices) {
+        devices[dev] = false;
+        events.emit(ADB, "device-disconnected", dev);
+      }
+
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
+
+      // When we lose connection to the server,
+      // and the adb is still on, we most likely got our server killed
+      // by local adb. So we do try to reconnect to it.
+      setTimeout(function () { // Give some time to the new adb to start
+        if (ADB.ready) { // Only try to reconnect/restart if the addon is still enabled
+          ADB.start().then(function () { // try to connect to the new local adb server
+                                         // or, spawn a new one
+            ADB.trackDevices(); // Re-track devices
+          });
+        }
+      }, 2000);
     }
 
     socket.ondata = function(aEvent) {
@@ -1083,8 +1103,7 @@ const ADB = {
     console.log("runCommand " + aCommand);
     let deferred = promise.defer();
     if (!this.ready) {
-      let window = Services.wm.getMostRecentWindow("navigator:browser");
-      window.setTimeout(function() { deferred.reject("ADB_NOT_READY"); });
+      setTimeout(function() { deferred.reject("ADB_NOT_READY"); });
       return deferred.promise;
     }
 
