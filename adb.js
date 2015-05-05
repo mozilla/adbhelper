@@ -1023,6 +1023,18 @@ const ADB = {
     return deferred.promise;
   },
 
+  reboot: function adb_reboot() {
+    return this.shell("reboot");
+  },
+
+  rebootRecovery: function adb_rebootRecovery() {
+    return this.shell("reboot recovery");
+  },
+
+  rebootBootloader: function adb_rebootBootloader() {
+    return this.shell("reboot bootloader");
+  },
+
   root: function adb_root() {
     let deferred = promise.defer();
     let socket;

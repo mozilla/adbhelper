@@ -1,6 +1,7 @@
 let {Cu} = require("chrome");
 Cu.import("resource://gre/modules/Services.jsm");
 let adb = require("./adb");
+let fastboot = require("./fastboot");
 const events = require("sdk/event/core");
 
 const {devtools} = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
@@ -64,15 +65,24 @@ Device.prototype = {
               .then(() => port);
   },
 
+  type: "adb",
+
   shell: adb.shell.bind(adb),
   forwardPort: adb.forwardPort.bind(adb),
   push: adb.push.bind(adb),
   pull: adb.pull.bind(adb),
+  reboot: adb.reboot.bind(adb),
+  rebootRecovery: adb.rebootRecovery.bind(adb),
+  rebootBootloader: adb.rebootBootloader.bind(adb),
 
   isRoot: function() {
     return adb.shell("id").then(stdout => {
-      let uid = stdout.match(/uid=(\d+)/)[1];
-      return uid == "0";
+      if (stdout) {
+        let uid = stdout.match(/uid=(\d+)/)[1];
+        return uid == "0";
+      } else {
+        return false;
+      }
     });
   },
 
@@ -99,6 +109,9 @@ Device.prototype = {
  * device.  This the approach used in the Fever Dream / Valence add-on to find
  * Chrome on Android, for example.
  */
+
+Devices.on("fastboot-start-polling", fastboot.startPolling.bind(fastboot));
+Devices.on("fastboot-stop-polling", fastboot.stopPolling.bind(fastboot));
 
 function onConnected(deviceId) {
   console.log("CONNECTED: " + deviceId);
