@@ -20,10 +20,10 @@ endef
 $(XPI_NAME)-win32.xpi: $(FILES) subprocess_worker_win.js win32
 	@$(call build-xpi,win32, $^)
 
-$(XPI_NAME)-linux.xpi: $(FILES) subprocess_worker_unix.js linux
+$(XPI_NAME)-linux.xpi: $(FILES) subprocess_worker_unix.js linux linux64
 	@$(call build-xpi,linux, $^)
 
-$(XPI_NAME)-linux64.xpi: $(FILES) subprocess_worker_unix.js linux64
+$(XPI_NAME)-linux64.xpi: $(FILES) subprocess_worker_unix.js linux linux64
 	@$(call build-xpi,linux64, $^)
 
 $(XPI_NAME)-mac64.xpi: $(FILES) subprocess_worker_unix.js mac64
