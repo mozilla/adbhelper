@@ -1,5 +1,5 @@
 FILES=adb.js adb-*.js bootstrap.js device.js fastboot.js main.js scanner.js subprocess.js
-ADDON_VERSION=0.8.0pre
+ADDON_VERSION=0.8.1pre
 XPI_NAME=adbhelper-$(ADDON_VERSION)
 
 FTP_ROOT_PATH=/pub/mozilla.org/labs/fxos-simulator/adb-helper
