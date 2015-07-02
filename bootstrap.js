@@ -78,6 +78,9 @@ function startup(data, reason) {
       error: function(...args) {
         canLog() && _console.error(LOGPREFIX, ...args);
       },
+      exception: function(...args) {
+        canLog() && _console.exception(LOGPREFIX, ...args);
+      },
       debug: function(...args) {
         canLog() && _console.debug(LOGPREFIX, ...args);
       }

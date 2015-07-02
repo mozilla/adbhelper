@@ -1,4 +1,4 @@
-FILES=adb.js adb-*.js bootstrap.js fastboot.js main.js scanner.js subprocess.js
+FILES=adb.js adb-*.js bootstrap.js device.js fastboot.js main.js scanner.js subprocess.js
 ADDON_VERSION=0.7.5pre
 XPI_NAME=adbhelper-$(ADDON_VERSION)
 
