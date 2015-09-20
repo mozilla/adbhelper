@@ -11,7 +11,7 @@
 // then it's a JavaScript Module.
 
 const { Cc, Ci, Cu, Cr } = require("chrome");
-const subprocess = require("./subprocess");
+const subprocess = require("sdk/system/child_process/subprocess");
 const {XPCOMABI} = require("sdk/system/runtime");
 const {setInterval, clearInterval} = require("sdk/timers");
 

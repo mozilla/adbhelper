@@ -1,4 +1,4 @@
-FILES=adb.js adb-*.js bootstrap.js device.js fastboot.js main.js scanner.js subprocess.js
+FILES=adb.js adb-*.js bootstrap.js device.js fastboot.js main.js scanner.js
 ADDON_VERSION=0.8.1pre
 XPI_NAME=adbhelper-$(ADDON_VERSION)
 
@@ -17,16 +17,16 @@ define build-xpi
 	zip $(XPI_NAME)-$1.xpi -r $2 install.rdf
 endef
 
-$(XPI_NAME)-win32.xpi: $(FILES) subprocess_worker_win.js win32
+$(XPI_NAME)-win32.xpi: $(FILES) win32
 	@$(call build-xpi,win32, $^)
 
-$(XPI_NAME)-linux.xpi: $(FILES) subprocess_worker_unix.js linux linux64
+$(XPI_NAME)-linux.xpi: $(FILES) linux linux64
 	@$(call build-xpi,linux, $^)
 
-$(XPI_NAME)-linux64.xpi: $(FILES) subprocess_worker_unix.js linux linux64
+$(XPI_NAME)-linux64.xpi: $(FILES) linux linux64
 	@$(call build-xpi,linux64, $^)
 
-$(XPI_NAME)-mac64.xpi: $(FILES) subprocess_worker_unix.js mac64
+$(XPI_NAME)-mac64.xpi: $(FILES) mac64
 	@$(call build-xpi,mac64, $^)
 
 clean:
