@@ -11,29 +11,27 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 let { TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
 
-const OLD_SOCKET_API =
-  Services.vc.compare(Services.appinfo.platformVersion, "23.0a1") < 0;
-
-// Workaround until bug 920586 is fixed
-// in order to allow TCPSocket usage in chrome code
-// without exposing it to content
-function createTCPSocket() {
+function createTCPSocket(location, port, options) {
+  // Starting with FF43, TCPSocket is now exposed via WebIDL
+  let { TCPSocket } = Cu.import("resource://gre/modules/Services.jsm", {});
+  if (TCPSocket) {
+    return new TCPSocket(location, port, options);
+  }
   let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
-  scope.DOMError = Cu.import('resource://gre/modules/Services.jsm').DOMError;
+  scope.DOMError = Cu.import("resource://gre/modules/Services.jsm", {}).DOMError;
   Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
   scope.TCPSocket.prototype.initWindowless = function () true;
-  return new scope.TCPSocket();
+  let socket = new scope.TCPSocket();
+  return socket.open(location, port, options);
 }
-
-let TCPSocket = createTCPSocket();
+exports.createTCPSocket = createTCPSocket;
 
 // Creates a socket connected to the adb instance.
 // This instantiation is sync, and returns before we know if opening the
 // connection succeeds. Callers must attach handlers to the s field.
 let AdbSocket = Class({
   initialize: function initialize() {
-    this.s =
-      TCPSocket.open("127.0.0.1", 5037, { binaryType: "arraybuffer" });
+    this.s = createTCPSocket("127.0.0.1", 5037, { binaryType: "arraybuffer" });
   },
 
   /**
@@ -72,13 +70,7 @@ let AdbSocket = Class({
   send: function send(aArray) {
     this._hexdump(aArray);
 
-    if (OLD_SOCKET_API) {
-      // Create a new Uint8Array in case the array we got is of a different type
-      // (like Uint32Array), since the old API takes a Uint8Array.
-      this.s.send(new Uint8Array(aArray.buffer));
-    } else {
-      this.s.send(aArray.buffer, aArray.byteOffset, aArray.byteLength);
-    }
+    this.s.send(aArray.buffer, aArray.byteOffset, aArray.byteLength);
   },
 
   close: function close() {

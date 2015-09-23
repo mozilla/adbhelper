@@ -17,8 +17,12 @@ const {env} = require("sdk/system/environment");
 const events = require("sdk/event/core");
 const {XPCOMABI} = require("sdk/system/runtime");
 const {setTimeout} = require("sdk/timers");
+const {createTCPSocket} = require("./adb-socket");
 
 Cu.import("resource://gre/modules/Services.jsm");
+
+const USE_PACKET_BUFFER =
+  Services.vc.compare(Services.appinfo.platformVersion, "43.0a1") >= 0;
 
 // When loaded as a CommonJS module, get the TextEncoder and TextDecoder
 // interfaces from the Services JavaScript Module, since they aren't defined
@@ -33,17 +37,6 @@ try {
   promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
 }
 Cu.import("resource://gre/modules/osfile.jsm");
-
-// Workaround until bug 920586 is fixed
-// in order to allow TCPSocket usage in chrome code
-// without exposing it to content
-function createTCPSocket() {
-  let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
-  scope.DOMError = Cu.import('resource://gre/modules/Services.jsm').DOMError;
-  Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
-  scope.TCPSocket.prototype.initWindowless = function () true;
-  return new scope.TCPSocket();
-}
 
 let ready = false;
 let didRunInitially = false;
@@ -256,11 +249,9 @@ const ADB = {
   // This function is sync, and returns before we know if opening the
   // connection succeeds. Callers must attach handlers to the socket.
   _connect: function adb_connect() {
-    let TCPSocket = createTCPSocket();
-    let socket = TCPSocket.open(
+    return createTCPSocket(
      "127.0.0.1", 5037,
      { binaryType: "arraybuffer" });
-    return socket;
   },
 
   // @param aCommand A protocol-level command as described in
@@ -280,7 +271,7 @@ const ADB = {
   // Checks if the response is expected.
   // @return true if response equals expected.
   _checkResponse: function adb_checkResponse(aPacket, expected) {
-    let buffer = aPacket;
+    let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
     let view = new Uint32Array(buffer, 0 , 1);
     if (view[0] == FAIL) {
       console.log("Response: FAIL");
@@ -292,7 +283,7 @@ const ADB = {
   // @param aIgnoreResponse True if this packet has no OKAY/FAIL.
   // @return                A js object { length:...; data:... }
   _unpackPacket: function adb_unpackPacket(aPacket, aIgnoreResponse) {
-    let buffer = aPacket;
+    let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
     let lengthView = new Uint8Array(buffer, aIgnoreResponse ? 0 : 4, 4);
     let decoder = new TextDecoder();
     let length = parseInt(decoder.decode(lengthView), 16);
