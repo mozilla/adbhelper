@@ -4,11 +4,8 @@
 
 "use strict";
 
-const { Cu } = require("chrome");
-const { devtools } = Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
-const devtoolsRequire = devtools.require;
 const { ConnectionManager } =
-  devtoolsRequire("devtools/client/connection-manager");
+  require("./devtools-require")("devtools/shared/client/connection-manager");
 const adb = require("./adb");
 
 /**

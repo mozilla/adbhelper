@@ -65,7 +65,15 @@ function startup(data, reason) {
     return Services.prefs.getBoolPref(LOGPREF);
   }
 
-  const { ConsoleAPI } = Cu.import("resource://gre/modules/devtools/Console.jsm");
+  // In Firefox 44 and later, many DevTools modules were relocated.
+  // See https://bugzil.la/912121
+  let ConsoleAPI;
+  try {
+    ({ ConsoleAPI } = Cu.import("resource://gre/modules/devtools/shared/Console.jsm"));
+  } catch (e) {
+    ({ ConsoleAPI } = Cu.import("resource://gre/modules/devtools/Console.jsm"));
+  }
+
   let _console = new ConsoleAPI();
   loaderOptions.globals = {
     console: {

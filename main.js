@@ -4,18 +4,16 @@
 
 "use strict";
 
-const { Cu } = require("chrome");
-const { devtools } =
-  Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
-const devtoolsRequire = devtools.require;
-const { defineLazyGetter } = devtoolsRequire("devtools/toolkit/DevToolsUtils");
+const { defineLazyGetter } =
+  require("./devtools-require")("devtools/shared/DevToolsUtils");
 
 const events = require("sdk/event/core");
 const { when: unload } = require("sdk/system/unload");
 const system = require("sdk/system");
-const { Devices } = Cu.import("resource://gre/modules/devtools/Devices.jsm");
+const { Devices } =
+  require("./devtools-import")("resource://gre/modules/devtools/shared/apps/Devices.jsm");
 const { gDevToolsBrowser } =
-  Cu.import("resource:///modules/devtools/gDevTools.jsm");
+  require("./devtools-import")("resource:///modules/devtools/client/framework/gDevTools.jsm");
 defineLazyGetter(this, "adb", () => {
   return require("./adb");
 });
@@ -32,7 +30,8 @@ unload(() => Devices.helperAddonInstalled = false);
 
 function onADBStart() {
   // As of Firefox 36, WebIDE exposes an API to register new runtimes.
-  let Runtimes = devtoolsRequire("devtools/webide/runtimes");
+  let Runtimes =
+    require("./devtools-require")("devtools/client/webide/modules/runtimes");
   if (Runtimes && Runtimes.RuntimeScanners) {
     let scanner = require("./scanner");
     scanner.register();
