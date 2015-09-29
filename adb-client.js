@@ -16,8 +16,8 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 let { TextEncoder, TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
 
-const OLD_SOCKET_API =
-  Services.vc.compare(Services.appinfo.platformVersion, "23.0a1") < 0;
+const USE_PACKET_BUFFER =
+  Services.vc.compare(Services.appinfo.platformVersion, "43.0a1") >= 0;
 
 let _sockets = [ ];
 
@@ -25,7 +25,7 @@ let _sockets = [ ];
 // @param aIgnoreResponse True if this packet has no OKAY/FAIL.
 // @return                A js object { length:...; data:... }
 function unpackPacket(aPacket, aIgnoreResponse) {
-  let buffer = OLD_SOCKET_API ? aPacket.buffer : aPacket;
+  let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
   console.debug("Len buffer: " + buffer.byteLength);
   if (buffer.byteLength === 4 && !aIgnoreResponse) {
     console.debug("Packet empty");
@@ -43,7 +43,7 @@ function unpackPacket(aPacket, aIgnoreResponse) {
 function checkResponse(aPacket) {
   const OKAY = 0x59414b4f; // OKAY
   const FAIL = 0x4c494146; // FAIL
-  let buffer = OLD_SOCKET_API ? aPacket.buffer : aPacket;
+  let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
   let view = new Uint32Array(buffer, 0 , 1);
   if (view[0] == FAIL) {
     console.debug("Response: FAIL");

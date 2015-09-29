@@ -17,6 +17,7 @@ const {env} = require("sdk/system/environment");
 const events = require("sdk/event/core");
 const {XPCOMABI} = require("sdk/system/runtime");
 const {setTimeout} = require("sdk/timers");
+const client = require("./adb-client");
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -32,18 +33,8 @@ try {
 } catch (e) {
   promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
 }
-Cu.import("resource://gre/modules/osfile.jsm");
 
-// Workaround until bug 920586 is fixed
-// in order to allow TCPSocket usage in chrome code
-// without exposing it to content
-function createTCPSocket() {
-  let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
-  scope.DOMError = Cu.import('resource://gre/modules/Services.jsm').DOMError;
-  Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
-  scope.TCPSocket.prototype.initWindowless = function () true;
-  return new scope.TCPSocket();
-}
+Cu.import("resource://gre/modules/osfile.jsm");
 
 let ready = false;
 let didRunInitially = false;
@@ -252,77 +243,29 @@ const ADB = {
     return deferred.promise;
   },
 
-  // Creates a socket connected to the adb instance.
-  // This function is sync, and returns before we know if opening the
-  // connection succeeds. Callers must attach handlers to the socket.
-  _connect: function adb_connect() {
-    let TCPSocket = createTCPSocket();
-    let socket = TCPSocket.open(
-     "127.0.0.1", 5037,
-     { binaryType: "arraybuffer" });
-    return socket;
-  },
-
-  // @param aCommand A protocol-level command as described in
-  //  http://androidxref.com/4.0.4/xref/system/core/adb/OVERVIEW.TXT and
-  //  http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT
-  // @return A 8 bit typed array.
-  _createRequest: function adb_createRequest(aCommand) {
-    let length = aCommand.length.toString(16).toUpperCase();
-    while(length.length < 4) {
-      length = "0" + length;
-    }
-
-    let encoder = new TextEncoder();
-    return encoder.encode(length + aCommand);
-  },
-
-  // Checks if the response is expected.
-  // @return true if response equals expected.
-  _checkResponse: function adb_checkResponse(aPacket, expected) {
-    let buffer = aPacket;
-    let view = new Uint32Array(buffer, 0 , 1);
-    if (view[0] == FAIL) {
-      console.log("Response: FAIL");
-    }
-    return view[0] == expected;
-  },
-
-  // @param aPacket         The packet to get the length from.
-  // @param aIgnoreResponse True if this packet has no OKAY/FAIL.
-  // @return                A js object { length:...; data:... }
-  _unpackPacket: function adb_unpackPacket(aPacket, aIgnoreResponse) {
-    let buffer = aPacket;
-    let lengthView = new Uint8Array(buffer, aIgnoreResponse ? 0 : 4, 4);
-    let decoder = new TextDecoder();
-    let length = parseInt(decoder.decode(lengthView), 16);
-    let text = new Uint8Array(buffer, aIgnoreResponse ? 4 : 8, length);
-    return { length: length, data: decoder.decode(text) }
-  },
-
   // Start tracking devices connecting and disconnecting from the host.
   // We can't reuse runCommand here because we keep the socket alive.
   // @return The socket used.
   trackDevices: function adb_trackDevices() {
     console.log("trackDevices");
-    let socket = this._connect();
+    let socket = client.connect();
     let waitForFirst = true;
     let devices = {};
 
-    socket.onopen = function() {
+    socket.s.onopen = function() {
       console.log("trackDevices onopen");
       Services.obs.notifyObservers(null, "adb-track-devices-start", null);
-      let req = this._createRequest("host:track-devices");
-      ADB.sockSend(socket, req);
+      let req = client.createRequest("host:track-devices");
+      socket.send(req);
 
     }.bind(this);
 
-    socket.onerror = function(event) {
+    socket.s.onerror = function(event) {
       console.log("trackDevices onerror: " + event.data.name);
       Services.obs.notifyObservers(null, "adb-track-devices-stop", null);
     }
 
-    socket.onclose = function() {
+    socket.s.onclose = function() {
       console.log("trackDevices onclose");
 
       // Report all devices as disconnected
@@ -346,7 +289,7 @@ const ADB = {
       }, 2000);
     }
 
-    socket.ondata = function(aEvent) {
+    socket.s.ondata = function(aEvent) {
       console.log("trackDevices ondata");
       let data = aEvent.data;
       console.log("length=" + data.byteLength);
@@ -355,13 +298,13 @@ const ADB = {
 
       // check the OKAY or FAIL on first packet.
       if (waitForFirst) {
-        if (!this._checkResponse(data, OKAY)) {
+        if (!client.checkResponse(data, OKAY)) {
           socket.close();
           return;
         }
       }
 
-      let packet = this._unpackPacket(data, !waitForFirst);
+      let packet = client.unpackPacket(data, !waitForFirst);
       waitForFirst = false;
 
       if (packet.data == "") {
@@ -395,8 +338,6 @@ const ADB = {
         }
       }
     }.bind(this);
-
-    return socket;
   },
 
   // Sends back an array of device names.
@@ -564,12 +505,12 @@ const ADB = {
           runFSM();
           break;
         case "send-transport":
-          req = ADB._createRequest("host:transport-any");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("host:transport-any");
+          socket.send(req);
           state = "wait-transport";
           break;
         case "wait-transport":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -578,12 +519,12 @@ const ADB = {
           runFSM();
           break;
         case "send-sync":
-          req = ADB._createRequest("sync:");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("sync:");
+          socket.send(req);
           state = "wait-sync";
           break;
         case "wait-sync":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -594,14 +535,14 @@ const ADB = {
         case "send-stat":
           infoLengthPacket = new Uint32Array(1);
           infoLengthPacket[0] = aFrom.length;
-          ADB.sockSend(socket, encoder.encode("STAT"));
-          ADB.sockSend(socket, infoLengthPacket);
-          ADB.sockSend(socket, encoder.encode(aFrom));
+          socket.send(encoder.encode("STAT"));
+          socket.send(infoLengthPacket);
+          socket.send(encoder.encode(aFrom));
 
           state = "wait-stat";
           break;
         case "wait-stat":
-          if (!ADB._checkResponse(aData, STAT)) {
+          if (!client.checkResponse(aData, STAT)) {
             shutdown();
             return;
           }
@@ -625,9 +566,9 @@ const ADB = {
         case "send-recv":
           infoLengthPacket = new Uint32Array(1);
           infoLengthPacket[0] = aFrom.length;
-          ADB.sockSend(socket, encoder.encode("RECV"));
-          ADB.sockSend(socket, infoLengthPacket);
-          ADB.sockSend(socket, encoder.encode(aFrom));
+          socket.send(encoder.encode("RECV"));
+          socket.send(infoLengthPacket);
+          socket.send(encoder.encode(aFrom));
 
           state = "wait-recv";
           break;
@@ -683,8 +624,8 @@ const ADB = {
         case "send-quit":
           infoLengthPacket = new Uint32Array(1);
           infoLengthPacket[0] = 0;
-          ADB.sockSend(socket, encoder.encode("QUIT"));
-          ADB.sockSend(socket, infoLengthPacket);
+          socket.send(encoder.encode("QUIT"));
+          socket.send(infoLengthPacket);
 
           state = "end";
           runFSM();
@@ -699,70 +640,31 @@ const ADB = {
     }
 
     let setupSocket = function() {
-      socket.onerror = function(aEvent) {
+      socket.s.onerror = function(aEvent) {
         console.log("pull onerror");
         deferred.reject("SOCKET_ERROR");
       }
 
-      socket.onopen = function(aEvent) {
+      socket.s.onopen = function(aEvent) {
         console.log("pull onopen");
         state = "start";
         runFSM();
       }
 
-      socket.onclose = function(aEvent) {
+      socket.s.onclose = function(aEvent) {
         console.log("pull onclose");
       }
 
-      socket.ondata = function(aEvent) {
+      socket.s.ondata = function(aEvent) {
         console.log("pull ondata:");
         runFSM(aEvent.data);
       }
     }
 
-    socket = ADB._connect();
+    socket = client.connect();
     setupSocket();
 
     return deferred.promise;
-  },
-
-  /**
-   * Dump the first few bytes of the given array to the console.
-   *
-   * @param {TypedArray} aArray
-   *        the array to dump
-   */
-  hexdump: function adb_hexdump(aArray) {
-    let decoder = new TextDecoder("windows-1252");
-    let array = new Uint8Array(aArray.buffer);
-    let s = decoder.decode(array);
-    let len = array.length;
-    let dbg = "len=" + len + " ";
-    let l = len > 20 ? 20 : len;
-
-    for (let i = 0; i < l; i++) {
-      let c = array[i].toString(16);
-      if (c.length == 1)
-        c = "0" + c;
-      dbg += c;
-    }
-    dbg += " ";
-    for (let i = 0; i < l; i++) {
-      let c = array[i];
-      if (c < 32 || c > 127) {
-        dbg += ".";
-      } else {
-        dbg += s[i];
-      }
-    }
-    console.log(dbg);
-  },
-
-  // debugging version of tcpsocket.send()
-  sockSend: function adb_sockSend(aSocket, aArray) {
-    this.hexdump(aArray);
-
-    aSocket.send(aArray.buffer, aArray.byteOffset, aArray.byteLength);
   },
 
   // pushes a file to the device.
@@ -795,12 +697,12 @@ const ADB = {
           runFSM();
           break;
         case "send-transport":
-          req = ADB._createRequest("host:transport-any");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("host:transport-any");
+          socket.send(req);
           state = "wait-transport";
           break
         case "wait-transport":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -809,12 +711,12 @@ const ADB = {
           runFSM();
           break
         case "send-sync":
-          req = ADB._createRequest("sync:");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("sync:");
+          socket.send(req);
           state = "wait-sync";
           break
         case "wait-sync":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -829,9 +731,9 @@ const ADB = {
 
           let infoLengthPacket = new Uint32Array(1), info = aDest + ",33204";
           infoLengthPacket[0] = info.length;
-          ADB.sockSend(socket, encoder.encode("SEND"));
-          ADB.sockSend(socket, infoLengthPacket);
-          ADB.sockSend(socket, encoder.encode(info));
+          socket.send(encoder.encode("SEND"));
+          socket.send(infoLengthPacket);
+          socket.send(encoder.encode(info));
 
           // now sending file data.
           while (remaining > 0) {
@@ -845,9 +747,9 @@ const ADB = {
             let dataPacket = new Uint8Array(new ArrayBuffer(toSend));
             dataPacket.set(new Uint8Array(fileData.buffer, currentPos, toSend));
             dataLengthPacket[0] = toSend;
-            ADB.sockSend(socket, encoder.encode("DATA"));
-            ADB.sockSend(socket, dataLengthPacket);
-            ADB.sockSend(socket, dataPacket);
+            socket.send(encoder.encode("DATA"));
+            socket.send(dataLengthPacket);
+            socket.send(dataPacket);
 
             currentPos += toSend;
             remaining -= toSend;
@@ -856,13 +758,13 @@ const ADB = {
           // Ending up with DONE + mtime (wtf???)
           let fileTimePacket = new Uint32Array(1);
           fileTimePacket[0] = fileTime;
-          ADB.sockSend(socket, encoder.encode("DONE"));
-          ADB.sockSend(socket, fileTimePacket);
+          socket.send(encoder.encode("DONE"));
+          socket.send(fileTimePacket);
 
           state = "wait-done";
           break;
         case "wait-done":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -881,22 +783,22 @@ const ADB = {
     }
 
     let setupSocket = function() {
-      socket.onerror = function(aEvent) {
+      socket.s.onerror = function(aEvent) {
         console.log("push onerror");
         deferred.reject("SOCKET_ERROR");
       }
 
-      socket.onopen = function(aEvent) {
+      socket.s.onopen = function(aEvent) {
         console.log("push onopen");
         state = "start";
         runFSM();
       }
 
-      socket.onclose = function(aEvent) {
+      socket.s.onclose = function(aEvent) {
         console.log("push onclose");
       }
 
-      socket.ondata = function(aEvent) {
+      socket.s.ondata = function(aEvent) {
         console.log("push ondata");
         runFSM(aEvent.data);
       }
@@ -918,7 +820,7 @@ const ADB = {
           readPromise.then(
             function readSuccess(aData) {
               fileData = aData;
-              socket = ADB._connect();
+              socket = client.connect();
               setupSocket();
             },
             function readError() {
@@ -960,12 +862,12 @@ const ADB = {
           runFSM();
         break;
         case "send-transport":
-          req = ADB._createRequest("host:transport-any");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("host:transport-any");
+          socket.send(req);
           state = "wait-transport";
         break
         case "wait-transport":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -973,12 +875,12 @@ const ADB = {
           runFSM();
         break
         case "send-shell":
-          req = ADB._createRequest("shell:" + aCommand);
-          ADB.sockSend(socket, req);
+          req = client.createRequest("shell:" + aCommand);
+          socket.send(req);
           state = "rec-shell";
         break
         case "rec-shell":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -998,24 +900,24 @@ const ADB = {
       }
     }
 
-    socket = ADB._connect();
-    socket.onerror = function(aEvent) {
+    socket = client.connect();
+    socket.s.onerror = function(aEvent) {
       console.log("shell onerror");
       deferred.reject("SOCKET_ERROR");
     }
 
-    socket.onopen = function(aEvent) {
+    socket.s.onopen = function(aEvent) {
       console.log("shell onopen");
       state = "start";
       runFSM();
     }
 
-    socket.onclose = function(aEvent) {
+    socket.s.onclose = function(aEvent) {
       deferred.resolve(stdout);
       console.log("shell onclose");
     }
 
-    socket.ondata = function(aEvent) {
+    socket.s.ondata = function(aEvent) {
       console.log("shell ondata");
       runFSM(aEvent.data);
     }
@@ -1057,12 +959,12 @@ const ADB = {
           runFSM();
         break;
         case "send-transport":
-          req = ADB._createRequest("host:transport-any");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("host:transport-any");
+          socket.send(req);
           state = "wait-transport";
         break
         case "wait-transport":
-          if (!ADB._checkResponse(aData, OKAY)) {
+          if (!client.checkResponse(aData, OKAY)) {
             shutdown();
             return;
           }
@@ -1070,8 +972,8 @@ const ADB = {
           runFSM();
         break
         case "send-root":
-          req = ADB._createRequest("root:");
-          ADB.sockSend(socket, req);
+          req = client.createRequest("root:");
+          socket.send(req);
           state = "rec-root";
         break
         case "rec-root":
@@ -1083,24 +985,24 @@ const ADB = {
       }
     }
 
-    socket = ADB._connect();
-    socket.onerror = function(aEvent) {
+    socket = client.connect();
+    socket.s.onerror = function(aEvent) {
       console.log("root onerror");
       deferred.reject("SOCKET_ERROR");
     }
 
-    socket.onopen = function(aEvent) {
+    socket.s.onopen = function(aEvent) {
       console.log("root onopen");
       state = "start";
       runFSM();
     }
 
-    socket.onclose = function(aEvent) {
+    socket.s.onclose = function(aEvent) {
       deferred.resolve();
       console.log("root onclose");
     }
 
-    socket.ondata = function(aEvent) {
+    socket.s.ondata = function(aEvent) {
       console.log("root ondata");
       runFSM(aEvent.data);
     }
@@ -1119,39 +1021,38 @@ const ADB = {
       return deferred.promise;
     }
 
-    let socket = this._connect();
+    let socket = client.connect();
     let waitForFirst = true;
     let devices = {};
 
-    socket.onopen = function() {
+    socket.s.onopen = function() {
       console.log("runCommand onopen");
-      let req = this._createRequest(aCommand);
-      ADB.sockSend(socket, req);
+      let req = client.createRequest(aCommand);
+      socket.send(req);
 
     }.bind(this);
 
-    socket.onerror = function() {
+    socket.s.onerror = function() {
       console.log("runCommand onerror");
       deferred.reject("NETWORK_ERROR");
     }
 
-    socket.onclose = function() {
+    socket.s.onclose = function() {
       console.log("runCommand onclose");
     }
 
-    socket.ondata = function(aEvent) {
+    socket.s.ondata = function(aEvent) {
       console.log("runCommand ondata");
       let data = aEvent.data;
 
-      if (!this._checkResponse(data, OKAY)) {
+      let packet = client.unpackPacket(data, false);
+      if (!client.checkResponse(data, OKAY)) {
         socket.close();
-        let packet = this._unpackPacket(data, false);
         console.log("Error: " + packet.data);
         deferred.reject("PROTOCOL_ERROR");
         return;
       }
 
-      let packet = this._unpackPacket(data, false);
       deferred.resolve(packet.data);
     }.bind(this);
 
