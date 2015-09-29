@@ -3,17 +3,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const { Cu } = require("chrome");
-const { devtools } =
-  Cu.import("resource://gre/modules/devtools/Loader.jsm", {});
-const devtoolsRequire = devtools.require;
-const EventEmitter = devtoolsRequire("devtools/toolkit/event-emitter");
+const EventEmitter =
+  require("./devtools-require")("devtools/shared/event-emitter");
 const { Task } = Cu.import("resource://gre/modules/Task.jsm", {});
 const { when: unload } = require("sdk/system/unload");
 const { ConnectionManager } =
-  devtoolsRequire("devtools/client/connection-manager");
+  require("./devtools-require")("devtools/shared/client/connection-manager");
 const { Devices } =
-  Cu.import("resource://gre/modules/devtools/Devices.jsm", {});
-const Runtimes = devtoolsRequire("devtools/webide/runtimes");
+  require("./devtools-import")("resource://gre/modules/devtools/shared/apps/Devices.jsm");
+const Runtimes =
+  require("./devtools-require")("devtools/client/webide/modules/runtimes");
 
 let promise;
 try {

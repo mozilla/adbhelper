@@ -19,6 +19,7 @@
     "Services": true,
     "Task": true,
     "XPCOMUtils": true,
+    "XPCNativeWrapper": true,
   },
   "rules": {
     // These are the rules that have been configured so far to match the
@@ -32,8 +33,9 @@
     "brace-style": [2, "1tbs", {"allowSingleLine": false}],
     // Require camel case names
     "camelcase": 2,
-    // Disallow trailing commas. Not valid JSON notation.
-    "comma-dangle": 1,
+    // Allow trailing commas for easy list extension.  Having them does not
+    // impair readability, but also not required either.
+    "comma-dangle": 0,
     // Enforce spacing before and after comma
     "comma-spacing": [2, {"before": false, "after": true}],
     // Enforce one true comma style.
@@ -50,9 +52,8 @@
     // Don't require a default case in switch statements. Avoid being forced to
     // add a bogus default when you know all possible cases are handled.
     "default-case": 0,
-    // Don't enforce consistent newlines before or after dots. This depends on
-    // what gives the most readable code.
-    "dot-location": [1, "object"],
+    // Enforce dots on the next line with property name.
+    "dot-location": [1, "property"],
     // Encourage the use of dot notation whenever possible.
     "dot-notation": 2,
     // Enforce newline at the end of file, with no multiple empty lines.
@@ -77,7 +78,7 @@
     // Only useful in a node environment.
     "handle-callback-err": 0,
     // Tab width.
-    "indent": [2, 2],
+    "indent": [2, 2, {"SwitchCase": 1}],
     // Enforces spacing between keys and values in object literal properties.
     "key-spacing": [1, {"beforeColon": false, "afterColon": true}],
     // Allow mixed 'LF' and 'CRLF' as linebreaks.
@@ -145,7 +146,7 @@
     // which is a valid use case.
     "no-empty": 2,
     // Disallow the use of empty character classes in regular expressions.
-    "no-empty-class": 2,
+    "no-empty-character-class": 2,
     // Disallow use of labels for anything other then loops and switches.
     "no-empty-label": 2,
     // Disallow use of eval(). We have other APIs to evaluate code in content.
@@ -281,7 +282,7 @@
     // Don't require quotes around object literal property names.
     "quote-props": 0,
     // Double quotes should be used.
-    "quotes": [1, "double"],
+    "quotes": [1, "double", "avoid-escape"],
     // Require use of the second argument for parseInt().
     "radix": 2,
     // Always require use of semicolons wherever they are valid.
@@ -319,7 +320,7 @@
     // Deprecated, will be removed in 1.0.
     "space-unary-word-ops": 0,
     // Require a space immediately following the // in a line comment.
-    "spaced-line-comment": [1, "always"],
+    "spaced-comment": [1, "always"],
     // Require "use strict" to be defined globally in the script.
     "strict": [2, "global"],
     // Disallow comparisons with the value NaN.
@@ -327,7 +328,7 @@
     // Warn about invalid JSDoc comments.
     // Disabled for now because of https://github.com/eslint/eslint/issues/2270
     // The rule fails on some jsdoc comments like in:
-    // browser/devtools/webconsole/console-output.js
+    // devtools/client/webconsole/console-output.js
     "valid-jsdoc": 0,
     // Ensure that the results of typeof are compared against a valid string.
     "valid-typeof": 2,
