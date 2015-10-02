@@ -40,7 +40,7 @@ function unpackPacket(aPacket, aIgnoreResponse) {
 
 // Checks if the response is OKAY or FAIL.
 // @return true for OKAY, false for FAIL.
-function checkResponse(aPacket) {
+function checkResponse(aPacket, aExpected) {
   const OKAY = 0x59414b4f; // OKAY
   const FAIL = 0x4c494146; // FAIL
   let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
@@ -49,7 +49,7 @@ function checkResponse(aPacket) {
     console.debug("Response: FAIL");
   }
   console.debug("view[0] = " + view[0]);
-  return view[0] == OKAY;
+  return view[0] == aExpected;
 }
 
 // @param aCommand A protocol-level command as described in
