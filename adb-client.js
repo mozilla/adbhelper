@@ -19,13 +19,21 @@ let { TextEncoder, TextDecoder } = Cu.import("resource://gre/modules/Services.js
 const USE_PACKET_BUFFER =
   Services.vc.compare(Services.appinfo.platformVersion, "43.0a1") >= 0;
 
+const OKAY = 0x59414b4f;
+const FAIL = 0x4c494146;
+
 let _sockets = [ ];
+
+// Return buffer, which differs between Gecko versions
+function getBuffer(aPacket) {
+  return USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
+}
 
 // @param aPacket         The packet to get the length from.
 // @param aIgnoreResponse True if this packet has no OKAY/FAIL.
 // @return                A js object { length:...; data:... }
 function unpackPacket(aPacket, aIgnoreResponse) {
-  let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
+  let buffer = getBuffer(aPacket);
   console.debug("Len buffer: " + buffer.byteLength);
   if (buffer.byteLength === 4 && !aIgnoreResponse) {
     console.debug("Packet empty");
@@ -38,18 +46,16 @@ function unpackPacket(aPacket, aIgnoreResponse) {
   return { length: length, data: decoder.decode(text) };
 }
 
-// Checks if the response is OKAY or FAIL.
-// @return true for OKAY, false for FAIL.
-function checkResponse(aPacket) {
-  const OKAY = 0x59414b4f; // OKAY
-  const FAIL = 0x4c494146; // FAIL
-  let buffer = USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
+// Checks if the response is expected (defaults to OKAY).
+// @return true if response equals expected.
+function checkResponse(aPacket, aExpected = OKAY) {
+  let buffer = getBuffer(aPacket);
   let view = new Uint32Array(buffer, 0 , 1);
   if (view[0] == FAIL) {
     console.debug("Response: FAIL");
   }
   console.debug("view[0] = " + view[0]);
-  return view[0] == OKAY;
+  return view[0] == aExpected;
 }
 
 // @param aCommand A protocol-level command as described in
@@ -78,6 +84,7 @@ function connect() {
 }
 
 let client = {
+  getBuffer: getBuffer,
   unpackPacket: unpackPacket,
   checkResponse: checkResponse,
   createRequest: createRequest,
@@ -86,4 +93,3 @@ let client = {
 };
 
 module.exports = client;
-
