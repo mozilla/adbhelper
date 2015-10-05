@@ -85,7 +85,7 @@ const ADB = {
   // the tcp socket preference to |true|
   start: function adb_start() {
     let deferred = promise.defer();
-    
+
     let onSuccessfulStart = (function onSuccessfulStart() {
       Services.obs.notifyObservers(null, "adb-ready", null);
       this.ready = true;
@@ -546,7 +546,7 @@ const ADB = {
             shutdown();
             return;
           }
-          view = new Uint32Array(aData);
+          view = new Uint32Array(client.getBuffer(aData));
           // view contains 4 elements of 32 bit;
           // the first element is hex "STAT"
           // the second one is file mode
@@ -577,7 +577,7 @@ const ADB = {
           // Handle every single socket package here.
           // Note: One socket package maybe contain many chunks, and often
           // partial chunk at the end.
-          pkgData = new Uint8Array(aData);
+          pkgData = new Uint8Array(client.getBuffer(aData));
 
           // Handle all data in a single socket package.
           while(pkgData.length > 0) {
@@ -890,7 +890,7 @@ const ADB = {
         case "decode-shell":
           if (aData) {
             let decoder = new TextDecoder();
-            let text = new Uint8Array(aData);
+            let text = new Uint8Array(client.getBuffer(aData));
             stdout += decoder.decode(text)
           }
         break;
