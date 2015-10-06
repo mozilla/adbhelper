@@ -152,7 +152,7 @@ FirefoxOnAndroidRuntime.detect = Task.async(function*(device, model) {
   let rawSocketInfo = yield device.shell(query);
   let socketInfos = rawSocketInfo.split("\r\n");
   // Filter to lines with "firefox-debugger-socket"
-  socketInfos = socketInfos.filter(l => l.contains("firefox-debugger-socket"));
+  socketInfos = socketInfos.filter(l => l.includes("firefox-debugger-socket"));
   // It's possible to have multiple lines with the same path, so de-dupe them
   let socketPaths = new Set();
   for (let socketInfo of socketInfos) {
