@@ -856,6 +856,7 @@ const ADB = {
     let runFSM = function runFSM(aData) {
       console.log("runFSM " + state);
       let req;
+      let ignoreResponseCode = false;
       switch(state) {
         case "start":
           state = "send-transport";
@@ -885,14 +886,14 @@ const ADB = {
             return;
           }
           state = "decode-shell";
-          runFSM();
-        break;
-        case "decode-shell":
-          if (aData) {
-            let decoder = new TextDecoder();
-            let text = new Uint8Array(client.getBuffer(aData));
-            stdout += decoder.decode(text)
+          if (client.getBuffer(aData).byteLength == 4) {
+            break;
           }
+          ignoreResponseCode = true;
+        case "decode-shell":
+          let decoder = new TextDecoder();
+          let text = new Uint8Array(client.getBuffer(aData), ignoreResponseCode ? 4 : 0);
+          stdout += decoder.decode(text)
         break;
         default:
           console.log("shell Unexpected State: " + state);
