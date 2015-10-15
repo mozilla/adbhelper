@@ -16,9 +16,6 @@ Cu.import("resource://gre/modules/Services.jsm");
 
 let { TextEncoder, TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
 
-const USE_PACKET_BUFFER =
-  Services.vc.compare(Services.appinfo.platformVersion, "43.0a1") >= 0;
-
 const OKAY = 0x59414b4f;
 const FAIL = 0x4c494146;
 
@@ -26,7 +23,7 @@ let _sockets = [ ];
 
 // Return buffer, which differs between Gecko versions
 function getBuffer(aPacket) {
-  return USE_PACKET_BUFFER ? aPacket.buffer : aPacket;
+  return aPacket.buffer ? aPacket.buffer : aPacket;
 }
 
 // @param aPacket         The packet to get the length from.
