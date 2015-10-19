@@ -10,7 +10,7 @@ const { when: unload } = require("sdk/system/unload");
 const { ConnectionManager } =
   require("./devtools-require")("devtools/shared/client/connection-manager");
 const { Devices } =
-  require("./devtools-import")("resource://gre/modules/devtools/shared/apps/Devices.jsm");
+  require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 const Runtimes =
   require("./devtools-require")("devtools/client/webide/modules/runtimes");
 

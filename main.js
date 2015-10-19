@@ -11,9 +11,9 @@ const events = require("sdk/event/core");
 const { when: unload } = require("sdk/system/unload");
 const system = require("sdk/system");
 const { Devices } =
-  require("./devtools-import")("resource://gre/modules/devtools/shared/apps/Devices.jsm");
+  require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 const { gDevToolsBrowser } =
-  require("./devtools-import")("resource:///modules/devtools/client/framework/gDevTools.jsm");
+  require("./devtools-import")("resource://devtools/client/framework/gDevTools.jsm");
 defineLazyGetter(this, "adb", () => {
   return require("./adb");
 });
