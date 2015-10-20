@@ -27,7 +27,7 @@ try {
 Cu.import("resource://gre/modules/osfile.jsm");
 
 let {Devices} =
-  require("./devtools-import")("resource://gre/modules/devtools/shared/apps/Devices.jsm");
+  require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 
 let fastbootTimer = null;
 let fastbootDevices = [];
