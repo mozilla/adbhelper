@@ -420,14 +420,12 @@ const ADB = {
     let deferred = promise.defer();
     let socket;
     let state;
-    let fileSize;
-    let fileData;
-    let remaining;
+    let fileData = null;
     let currentPos = 0;
-    let chunkSize;
+    let chunkSize = 0;
     let pkgData;
-    let headerArray;
-    let currentHeaderLength;
+    let headerArray = new Uint32Array(2);
+    let currentHeaderLength = 0;
 
     let encoder = new TextEncoder();
     let view;
@@ -480,7 +478,7 @@ const ADB = {
     // The last remaining package data contains 8 bytes,
     // they are "DONE(0x454e4f44)" and 0x0000.
     let checkDone = function(data) {
-      if (remaining != 0 || data.length != 8) {
+      if (data.length != 8) {
         return false;
       }
 
@@ -529,37 +527,6 @@ const ADB = {
             return;
           }
           console.log("sync: OK");
-          state = "send-stat";
-          runFSM();
-          break;
-        case "send-stat":
-          infoLengthPacket = new Uint32Array(1);
-          infoLengthPacket[0] = aFrom.length;
-          socket.send(encoder.encode("STAT"));
-          socket.send(infoLengthPacket);
-          socket.send(encoder.encode(aFrom));
-
-          state = "wait-stat";
-          break;
-        case "wait-stat":
-          if (!client.checkResponse(aData, STAT)) {
-            shutdown();
-            return;
-          }
-          view = new Uint32Array(client.getBuffer(aData));
-          // view contains 4 elements of 32 bit;
-          // the first element is hex "STAT"
-          // the second one is file mode
-          // the third one is file length
-          // and the last one is file time (lastModified?)
-          fileSize = view[2];
-          chunkSize = 0;
-          remaining = fileSize;
-          fileData = new Uint8Array(new ArrayBuffer(fileSize));
-          headerArray = new Uint32Array(2);
-          currentPos = 0;
-          currentHeaderLength = 0;
-          console.log("stat: OK");
           state = "send-recv";
           runFSM();
           break;
@@ -604,17 +571,25 @@ const ADB = {
             // handle full chunk
             if (chunkSize > 0 && pkgData.length >= chunkSize) {
               let chunkData = pkgData.subarray(0, chunkSize);
-              fileData.set(chunkData, currentPos);
+              let tmpData = new Uint8Array(currentPos + chunkSize);
+              if (fileData) {
+                tmpData.set(fileData, 0);
+              }
+              tmpData.set(chunkData, currentPos);
+              fileData = tmpData;
               pkgData = pkgData.subarray(chunkSize, pkgData.length);
               currentPos += chunkSize;
-              remaining -= chunkSize;
               chunkSize = 0;
             }
             // handle partial chunk at the end of socket package
-            if (chunkSize > 0 && pkgData.length < chunkSize) {
-              fileData.set(pkgData, currentPos);
+            if (chunkSize > 0 && pkgData.length > 0 && pkgData.length < chunkSize) {
+              let tmpData = new Uint8Array(currentPos + pkgData.length);
+              if (fileData) {
+                tmpData.set(fileData, 0);
+              }
+              tmpData.set(pkgData, currentPos);
+              fileData = tmpData;
               currentPos += pkgData.length;
-              remaining -= pkgData.length;
               chunkSize -= pkgData.length;
               break; // Break while loop.
             }
