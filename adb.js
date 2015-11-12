@@ -48,10 +48,19 @@ const DATA = 0x41544144;
 const DONE = 0x454e4f44;
 
 const ADB = {
-  get didRunInitially() didRunInitially,
-  set didRunInitially(newVal) { didRunInitially = newVal },
-  get ready() ready,
-  set ready(newVal) { ready = newVal },
+  get didRunInitially() {
+    return didRunInitially;
+  },
+  set didRunInitially(newVal) {
+    didRunInitially = newVal;
+  },
+
+  get ready() {
+    return ready;
+  },
+  set ready(newVal) {
+    ready = newVal;
+  },
 
   init: function adb_init() {
     console.log("init");

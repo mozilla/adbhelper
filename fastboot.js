@@ -33,8 +33,12 @@ let fastbootTimer = null;
 let fastbootDevices = [];
 
 const Fastboot = {
-  get fastbootDevices() fastbootDevices,
-  set fastbootDevices(newVal) { fastbootDevices = newVal },
+  get fastbootDevices() {
+    return fastbootDevices;
+  },
+  set fastbootDevices(newVal) {
+    fastbootDevices = newVal;
+  },
 
   init: function fastboot_init() {
     console.log("fastboot init");

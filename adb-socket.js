@@ -20,7 +20,9 @@ function createTCPSocket(location, port, options) {
   let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
   scope.DOMError = Cu.import("resource://gre/modules/Services.jsm", {}).DOMError;
   Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
-  scope.TCPSocket.prototype.initWindowless = function () true;
+  scope.TCPSocket.prototype.initWindowless = function() {
+    return true;
+  };
   let socket = new scope.TCPSocket();
   return socket.open(location, port, options);
 }
@@ -82,4 +84,3 @@ let AdbSocket = Class({
 });
 
 exports.AdbSocket = AdbSocket;
-

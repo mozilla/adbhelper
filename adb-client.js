@@ -71,7 +71,9 @@ function createRequest(aCommand) {
 }
 
 function close() {
-  _sockets.forEach(function(s) s.close());
+  _sockets.forEach(function(s) {
+    s.close();
+  });
 }
 
 function connect() {
