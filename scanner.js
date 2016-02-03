@@ -135,7 +135,7 @@ FirefoxOSRuntime.prototype = Object.create(Runtime.prototype);
 
 Object.defineProperty(FirefoxOSRuntime.prototype, "name", {
   get: function() {
-    return "Firefox OS (" + (this._model || this.device.id) + ")";
+    return this._model || this.device.id;
   }
 });
 
