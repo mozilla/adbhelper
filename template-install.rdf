@@ -16,6 +16,15 @@
         <em:maxVersion>44.0a1</em:maxVersion>
       </Description>
     </em:targetApplication>
+    
+    <!-- SeaMonkey -->
+    <em:targetApplication>
+      <em:Description>
+        <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
+        <em:minVersion>2.45</em:minVersion>
+        <em:maxVersion>2.*</em:maxVersion>
+      </em:Description>
+    </em:targetApplication>
 
     <!-- Front End MetaData -->
     <em:name>ADB Helper</em:name>
