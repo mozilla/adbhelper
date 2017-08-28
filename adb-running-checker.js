@@ -12,11 +12,11 @@
 
 const { Cu, Cc, Ci } = require("chrome");
 
-const promise = require("sdk/core/promise");
+const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
 const client = require("./adb-client");
 
 exports.check = function check() {
-  let deferred = promise.defer();
+  let deferred = PromiseUtils.defer();
   let socket;
   let state;
 
