@@ -11,22 +11,17 @@
 // then it's a JavaScript Module.
 
 const { Cc, Ci, Cu, Cr } = require("chrome");
-const subprocess = require("sdk/system/child_process/subprocess");
-const {XPCOMABI} = require("sdk/system/runtime");
-const {setInterval, clearInterval} = require("sdk/timers");
+const { Subprocess } = Cu.import("resource://gre/modules/Subprocess.jsm", {});
+const { setInterval, clearInterval } = Cu.import("resource://gre/modules/Timer.jsm", {});
+const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
 
 Cu.import("resource://gre/modules/Services.jsm");
 
-let promise;
-try {
-  promise = Cu.import("resource://gre/modules/commonjs/promise/core.js").Promise;
-} catch (e) {
-  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
-}
+const { XPCOMABI } = Services.appinfo;
 
 Cu.import("resource://gre/modules/osfile.jsm");
 
-let {Devices} =
+let { Devices } =
   require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 
 let fastbootTimer = null;
@@ -81,7 +76,7 @@ const Fastboot = {
   },
 
   do: function fastboot_do(args, serial) {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     let out_buffer = [];
     let err_buffer = [];
 
@@ -104,7 +99,7 @@ const Fastboot = {
       }
     };
 
-    subprocess.call(callPayload);
+    Subprocess.call(callPayload);
 
     return deferred.promise;
   },

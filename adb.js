@@ -11,30 +11,23 @@
 // then it's a JavaScript Module.
 
 const { Cc, Ci, Cu, Cr } = require("chrome");
-const subprocess = require("sdk/system/child_process/subprocess");
-const file = require("sdk/io/file");
-const {env} = require("sdk/system/environment");
-const events = require("sdk/event/core");
-const {XPCOMABI} = require("sdk/system/runtime");
-const {setTimeout} = require("sdk/timers");
+const events = require("./events");
 const client = require("./adb-client");
-
+const { setTimeout } = Cu.import("resource://gre/modules/Timer.jsm", {});
+const { Subprocess } = Cu.import("resource://gre/modules/Subprocess.jsm", {});
+const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
+const env = Cc['@mozilla.org/process/environment;1'].
+              getService(Ci.nsIEnvironment);
+Cu.import("resource://gre/modules/osfile.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+
+const {XPCOMABI} = Services.appinfo;
 
 // When loaded as a CommonJS module, get the TextEncoder and TextDecoder
 // interfaces from the Services JavaScript Module, since they aren't defined
 // in a CommonJS module by default.
 let { TextEncoder, TextDecoder } =
   Cu.import("resource://gre/modules/Services.jsm", {});
-
-let promise;
-try {
-  promise = Cu.import("resource://gre/modules/commonjs/promise/core.js").Promise;
-} catch (e) {
-  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
-}
-
-Cu.import("resource://gre/modules/osfile.jsm");
 
 let ready = false;
 let didRunInitially = false;
@@ -93,7 +86,7 @@ const ADB = {
   // We startup by launching adb in server mode, and setting
   // the tcp socket preference to |true|
   start: function adb_start() {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
 
     let onSuccessfulStart = (function onSuccessfulStart() {
       Services.obs.notifyObservers(null, "adb-ready", null);
@@ -199,8 +192,8 @@ const ADB = {
     }
   },
 
-  _isAdbRunning: function() {
-    let deferred = promise.defer();
+  _isAdbRunning: async function () {
+    let deferred = PromiseUtils.defer();
 
     let ps, args;
     let platform = Services.appinfo.OS;
@@ -211,12 +204,14 @@ const ADB = {
       args = ["aux"];
       let psCommand = "ps";
 
-      let paths = env.PATH.split(':');
+      let paths = env.get("PATH").split(":");
       let len = paths.length;
       for (let i = 0; i < len; i++) {
         try {
-          let fullyQualified = file.join(paths[i], psCommand);
-          if (file.exists(fullyQualified)) {
+          let fullyQualified = OS.Path.join(paths[i], psCommand);
+          let isFileExists = await OS.File.exists(fullyQualified);
+
+          if (isFileExists) {
             ps = fullyQualified;
             break;
           }
@@ -233,7 +228,7 @@ const ADB = {
 
     let buffer = [];
 
-    subprocess.call({
+    Subprocess.call({
       command: ps,
       arguments: args,
       stdout: function(data) {
@@ -426,7 +421,7 @@ const ADB = {
   // recv DONE + hex4(0)
   // send QUIT + hex4(0)
   pull: function adb_pull(aFrom, aDest) {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     let socket;
     let state;
     let fileData = null;
@@ -655,7 +650,7 @@ const ADB = {
   // aFrom and aDest are full paths.
   // XXX we should STAT the remote path before sending.
   push: function adb_push(aFrom, aDest) {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     let socket;
     let state;
     let fileSize;
@@ -824,7 +819,7 @@ const ADB = {
 
   // Run a shell command
   shell: function adb_shell(aCommand) {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     let socket;
     let state;
     let stdout = "";
@@ -923,7 +918,7 @@ const ADB = {
   },
 
   root: function adb_root() {
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     let socket;
     let state;
 
@@ -1000,7 +995,7 @@ const ADB = {
   // http://androidxref.com/4.0.4/xref/system/core/adb/SERVICES.TXT
   runCommand: function adb_runCommand(aCommand) {
     console.log("runCommand " + aCommand);
-    let deferred = promise.defer();
+    let deferred = PromiseUtils.defer();
     if (!this.ready) {
       setTimeout(function() { deferred.reject("ADB_NOT_READY"); });
       return deferred.promise;

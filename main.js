@@ -4,12 +4,14 @@
 
 "use strict";
 
+const { Cu } = require("chrome");
+
 const { defineLazyGetter } =
   require("./devtools-require")("devtools/shared/DevToolsUtils");
 
-const events = require("sdk/event/core");
-const { when: unload } = require("sdk/system/unload");
-const system = require("sdk/system");
+const events = require("./events");
+const unload = require("./unload");
+
 const { Devices } =
   require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 const { gDevToolsBrowser } =
@@ -23,6 +25,8 @@ defineLazyGetter(this, "fastboot", () => {
 defineLazyGetter(this, "Device", () => {
   return require("./device");
 });
+
+Cu.import("resource://gre/modules/Services.jsm");
 
 // Set this right away on startup
 Devices.helperAddonInstalled = true;
@@ -51,8 +55,8 @@ unload(() => Devices.off("adb-start-polling", onADBStart));
  * For Firefox 38 and earlier, we don't have the WebIDE promise either, so we
  * fallback to starting ADB at startup as we did before.
  */
-let version = Number.parseInt(system.version.split(".")[0]);
-if (system.id == "{ec8030f7-c20a-464f-9b0e-13a3a9e97384}" && version < 42) {
+let version = Number.parseInt(Services.appinfo.version.split(".")[0]);
+if (Services.appinfo.ID == "{ec8030f7-c20a-464f-9b0e-13a3a9e97384}" && version < 42) {
   if (gDevToolsBrowser.isWebIDEInitialized) {
     gDevToolsBrowser.isWebIDEInitialized.promise.then(onADBStart);
   } else {

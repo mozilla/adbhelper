@@ -6,20 +6,13 @@ const { Cu } = require("chrome");
 const EventEmitter =
   require("./devtools-require")("devtools/shared/event-emitter");
 const { Task } = Cu.import("resource://gre/modules/Task.jsm", {});
-const { when: unload } = require("sdk/system/unload");
+const unload = require("./unload");
 const { ConnectionManager } =
   require("./devtools-require")("devtools/shared/client/connection-manager");
 const { Devices } =
   require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 const Runtimes =
   require("./devtools-require")("devtools/client/webide/modules/runtimes");
-
-let promise;
-try {
-  promise = Cu.import("resource://gre/modules/commonjs/promise/core.js").Promise;
-} catch (e) {
-  promise = Cu.import("resource://gre/modules/commonjs/sdk/core/promise.js").Promise;
-}
 
 let Scanner = {
 
@@ -53,7 +46,7 @@ let Scanner = {
       let device = Devices.getByName(id);
       promises.push(this._detectRuntimes(device));
     }
-    this._updatingPromise = promise.all(promises);
+    this._updatingPromise = Promise.all(promises);
     this._updatingPromise.then(() => {
       this._emitUpdated();
       this._updatingPromise = null;

@@ -5,7 +5,6 @@
 'use strict';
 
 const { Cc, Ci, Cr, Cu } = require("chrome");
-const { Class } = require("sdk/core/heritage");
 
 Cu.import("resource://gre/modules/Services.jsm");
 
@@ -31,10 +30,10 @@ exports.createTCPSocket = createTCPSocket;
 // Creates a socket connected to the adb instance.
 // This instantiation is sync, and returns before we know if opening the
 // connection succeeds. Callers must attach handlers to the s field.
-let AdbSocket = Class({
-  initialize: function initialize() {
+class AdbSocket {
+  constructor() {
     this.s = createTCPSocket("127.0.0.1", 5037, { binaryType: "arraybuffer" });
-  },
+  }
 
   /**
    * Dump the first few bytes of the given array to the console.
@@ -42,7 +41,7 @@ let AdbSocket = Class({
    * @param {TypedArray} aArray
    *        the array to dump
    */
-  _hexdump: function hexdump(aArray) {
+  _hexdump(aArray) {
     let decoder = new TextDecoder("windows-1252");
     let array = new Uint8Array(aArray.buffer);
     let s = decoder.decode(array);
@@ -66,21 +65,21 @@ let AdbSocket = Class({
       }
     }
     console.debug(dbg);
-  },
+  }
 
   // debugging version of tcpsocket.send()
-  send: function send(aArray) {
+  send(aArray) {
     this._hexdump(aArray);
 
     this.s.send(aArray.buffer, aArray.byteOffset, aArray.byteLength);
-  },
+  }
 
-  close: function close() {
+  close() {
     if (this.s.readyState === "open" ||
         this.s.readyState === "connecting") {
       this.s.close();
     }
   }
-});
+}
 
 exports.AdbSocket = AdbSocket;
