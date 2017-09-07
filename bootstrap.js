@@ -22,6 +22,16 @@ function registerAddonResourceHandler(data) {
   return "resource://" + resourceName + "/";
 }
 
+function getBaseLoader() {
+  try {
+    // >=FF57 use the base-loader from DevTools.
+    return Cu.import("resource://devtools/shared/base-loader.js", {});
+  } catch (e) {
+    // <FF57 use the addon-sdk loader.
+    return Cu.import("resource://gre/modules/commonjs/toolkit/loader.js").Loader;
+  }
+}
+
 let mainModule;
 let loader;
 let unload;
@@ -31,19 +41,14 @@ function install(data, reason) {}
 function startup(data, reason) {
   let uri = registerAddonResourceHandler(data);
 
-  let loaderModule =
-    Cu.import('resource://gre/modules/commonjs/toolkit/loader.js').Loader;
-  let { Loader, Require, Main } = loaderModule;
+  let loaderModule = getBaseLoader();
+  let { Loader, Require } = loaderModule;
   unload = loaderModule.unload;
 
   let loaderOptions = {
     paths: {
       "./": uri,
-      "": "resource://gre/modules/commonjs/"
     },
-    modules: {
-      "toolkit/loader": loaderModule
-    }
   };
 
   /**
