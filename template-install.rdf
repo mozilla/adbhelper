@@ -28,7 +28,7 @@
 
     <!-- Front End MetaData -->
     <em:name>ADB Helper</em:name>
-    <em:description>An addon to ease connecting to Firefox OS devices.</em:description>
+    <em:description>An add-on to ease connecting to Firefox for Android.</em:description>
     <em:creator>Mozilla &amp; Android Open Source Project</em:creator>
     <em:homepageURL>https://github.com/mozilla/adbhelper</em:homepageURL>
     <em:updateURL>@@UPDATE_URL@@</em:updateURL>
