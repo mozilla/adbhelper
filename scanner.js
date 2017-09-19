@@ -174,6 +174,9 @@ Object.defineProperty(FirefoxOnAndroidRuntime.prototype, "name", {
         channel = " Beta";
         break;
       case "org.mozilla.fennec_aurora":
+        // This package name is now the one for Firefox Nightly distributed
+        // through the Google Play Store since "dawn project"
+        // cf. https://bugzilla.mozilla.org/show_bug.cgi?id=1357351#c8
         channel = " Nightly";
         break;
       case "org.mozilla.fennec":
