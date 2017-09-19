@@ -7,7 +7,7 @@
 'use strict';
 
 // Whether or not this script is being loaded as a CommonJS module
-// (from an addon built using the Add-on SDK).  If it isn't a CommonJS Module,
+// (from an add-on built using the Add-on SDK).  If it isn't a CommonJS Module,
 // then it's a JavaScript Module.
 
 const { Cc, Ci, Cu, Cr } = require("chrome");
@@ -148,9 +148,9 @@ const ADB = {
    *
    * @param {Boolean} aSync
    *        Whether or not to kill the server synchronously.  In general,
-   *        this should be false.  But on Windows, an addon may fail to update
+   *        this should be false.  But on Windows, an add-on may fail to update
    *        if its copy of ADB is running when Firefox tries to update it.
-   *        So addons who observe their own updates and kill the ADB server
+   *        So add-ons who observe their own updates and kill the ADB server
    *        beforehand should do so synchronously on Windows to make sure
    *        the update doesn't race the killing.
    */
@@ -284,7 +284,7 @@ const ADB = {
       // and the adb is still on, we most likely got our server killed
       // by local adb. So we do try to reconnect to it.
       setTimeout(function () { // Give some time to the new adb to start
-        if (ADB.ready) { // Only try to reconnect/restart if the addon is still enabled
+        if (ADB.ready) { // Only try to reconnect/restart if the add-on is still enabled
           ADB.start().then(function () { // try to connect to the new local adb server
                                          // or, spawn a new one
             ADB.trackDevices(); // Re-track devices

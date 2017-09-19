@@ -7,7 +7,7 @@
 'use strict';
 
 // Whether or not this script is being loaded as a CommonJS module
-// (from an addon built using the Add-on SDK).  If it isn't a CommonJS Module,
+// (from an add-on built using the Add-on SDK).  If it isn't a CommonJS Module,
 // then it's a JavaScript Module.
 
 const { Cc, Ci, Cu, Cr } = require("chrome");

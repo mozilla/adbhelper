@@ -57,7 +57,7 @@ function startup(data, reason) {
    */
 
   const LOGPREF = "extensions.adbhelper@mozilla.org.debug";
-  const LOGPREFIX = "ADB Addon Helper:";
+  const LOGPREFIX = "ADB Helper:";
 
   try {
     Services.prefs.getBoolPref(LOGPREF);
