@@ -174,7 +174,7 @@ Object.defineProperty(FirefoxOnAndroidRuntime.prototype, "name", {
         channel = " Beta";
         break;
       case "org.mozilla.fennec_aurora":
-        channel = " Aurora";
+        channel = " Nightly";
         break;
       case "org.mozilla.fennec":
         channel = " Nightly";
