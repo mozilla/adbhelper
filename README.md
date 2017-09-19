@@ -1,6 +1,6 @@
-A Firefox addon to ease connecting to Firefox for Android.
+A Firefox add-on to ease connecting to Firefox for Android.
 
-Addon license: http://www.mozilla.org/MPL/
+Add-on license: http://www.mozilla.org/MPL/
 
 ADB license: http://www.apache.org/licenses/LICENSE-2.0.html
 
@@ -8,9 +8,9 @@ ADB source code: https://android.googlesource.com/platform/system/core/+/master/
 
 ## Building
 
-To build the addon, run `make` from the root folder of your clone.
+To build the add-on, run `make` from the root folder of your clone.
 
-This will package the addon for various operating systems:
+This will package the add-on for various operating systems:
 - adbhelper-X.Y.Z-linux.xpi
 - adbhelper-X.Y.Z-linux64.xpi
 - adbhelper-X.Y.Z-mac64.xpi
