@@ -14,7 +14,9 @@ const { AdbSocket } = require("./adb-socket");
 
 Cu.import("resource://gre/modules/Services.jsm");
 
-let { TextEncoder, TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
+// Starting with FF57, jsm share the same global and this require pulling it from it.
+const { TextEncoder, TextDecoder } =
+  Cu.getGlobalForObject(Cu.import("resource://gre/modules/Services.jsm", {}));
 
 const OKAY = 0x59414b4f;
 const FAIL = 0x4c494146;

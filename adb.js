@@ -26,8 +26,9 @@ const {XPCOMABI} = Services.appinfo;
 // When loaded as a CommonJS module, get the TextEncoder and TextDecoder
 // interfaces from the Services JavaScript Module, since they aren't defined
 // in a CommonJS module by default.
-let { TextEncoder, TextDecoder } =
-  Cu.import("resource://gre/modules/Services.jsm", {});
+// Starting with FF57, jsm share the same global and this require pulling it from it.
+const { TextEncoder, TextDecoder } =
+  Cu.getGlobalForObject(Cu.import("resource://gre/modules/Services.jsm", {}));
 
 let ready = false;
 let didRunInitially = false;

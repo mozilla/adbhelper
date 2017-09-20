@@ -8,14 +8,20 @@ const { Cc, Ci, Cr, Cu } = require("chrome");
 
 Cu.import("resource://gre/modules/Services.jsm");
 
-let { TextDecoder } = Cu.import("resource://gre/modules/Services.jsm");
+// Starting with FF57, jsm share the same global and this require pulling it from it.
+const { TextDecoder } =
+  Cu.getGlobalForObject(Cu.import("resource://gre/modules/Services.jsm", {}));
 
 function createTCPSocket(location, port, options) {
+  // Starting with FF57, jsm share the same global and requires some special code
+  const { TCPSocket } = Cu.getGlobalForObject(Cu.import("resource://gre/modules/Services.jsm", {}));
+
   // Starting with FF43, TCPSocket is now exposed via WebIDL
-  let { TCPSocket } = Cu.import("resource://gre/modules/Services.jsm", {});
   if (TCPSocket) {
     return new TCPSocket(location, port, options);
   }
+
+  // For FF42 and previous
   let scope = Cu.Sandbox(Services.scriptSecurityManager.getSystemPrincipal());
   scope.DOMError = Cu.import("resource://gre/modules/Services.jsm", {}).DOMError;
   Services.scriptloader.loadSubScript("resource://gre/components/TCPSocket.js", scope);
