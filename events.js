@@ -7,7 +7,7 @@
  try {
    // <FF57
    module.exports = require("resource://gre/modules/commonjs/sdk/event/core");
- } catch(e) {
+ } catch (e) {
    // >=FF57, after SDK removal
    module.exports = require("./devtools-require")("devtools/shared/event-emitter");
  }

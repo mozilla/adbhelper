@@ -46,12 +46,13 @@ function devtoolsImport(path) {
       for (let replacement of replacements) {
         try {
           return scopedImport(path.replace(regex, replacement));
-        } catch(e) {
+        } catch (e) {
           // Continue trying other replacements
         }
       }
     }
   }
+  throw new Error(`Unable to import ${path}`);
 }
 
 module.exports = devtoolsImport;

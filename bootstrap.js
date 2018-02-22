@@ -4,13 +4,15 @@
 
 "use strict";
 
+/* exported install, startup, shutdown, uninstall */
+
 const Ci = Components.interfaces;
 const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/Services.jsm");
 
-const REASON = [ 'unknown', 'startup', 'shutdown', 'enable', 'disable',
-                 'install', 'uninstall', 'upgrade', 'downgrade' ];
+const REASON = [ "unknown", "startup", "shutdown", "enable", "disable",
+                 "install", "uninstall", "upgrade", "downgrade" ];
 
 // Usefull piece of code from :bent
 // http://mxr.mozilla.org/mozilla-central/source/dom/workers/test/extensions/bootstrap/bootstrap.js
@@ -18,7 +20,7 @@ function registerAddonResourceHandler(data) {
   let file = data.installPath;
   let fileuri = file.isDirectory() ?
                 Services.io.newFileURI(file) :
-                Services.io.newURI("jar:" + file.path + "!/", null, null);
+                Services.io.newURI("jar:" + file.path + "!/");
   let resourceName = encodeURIComponent(data.id.replace("@", "at"));
 
   Services.io.getProtocolHandler("resource").
@@ -67,7 +69,7 @@ function startup(data, reason) {
 
   try {
     Services.prefs.getBoolPref(LOGPREF);
-  } catch(e) {
+  } catch (e) {
     // Doesn't exist yet
     Services.prefs.setBoolPref(LOGPREF, false);
   }
@@ -97,23 +99,23 @@ function startup(data, reason) {
   let _console = new ConsoleAPI();
   loaderOptions.globals = {
     console: {
-      log: function(...args) {
+      log(...args) {
         canLog() && _console.log(LOGPREFIX, ...args);
       },
-      warn: function(...args) {
+      warn(...args) {
         canLog() && _console.warn(LOGPREFIX, ...args);
       },
-      error: function(...args) {
+      error(...args) {
         canLog() && _console.error(LOGPREFIX, ...args);
       },
-      exception: function(...args) {
+      exception(...args) {
         canLog() && _console.exception(LOGPREFIX, ...args);
       },
-      debug: function(...args) {
+      debug(...args) {
         canLog() && _console.debug(LOGPREFIX, ...args);
       }
     }
-  }
+  };
 
   loader = Loader(loaderOptions);
   let require_ = Require(loader, { id: "./addon" });

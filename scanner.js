@@ -18,7 +18,7 @@ let Scanner = {
 
   _runtimes: [],
 
-  enable: function() {
+  enable() {
     this._updateRuntimes = this._updateRuntimes.bind(this);
     Devices.on("register", this._updateRuntimes);
     Devices.on("unregister", this._updateRuntimes);
@@ -26,17 +26,17 @@ let Scanner = {
     this._updateRuntimes();
   },
 
-  disable: function() {
+  disable() {
     Devices.off("register", this._updateRuntimes);
     Devices.off("unregister", this._updateRuntimes);
     Devices.off("addon-status-updated", this._updateRuntimes);
   },
 
-  _emitUpdated: function() {
+  _emitUpdated() {
     this.emit("runtime-list-updated");
   },
 
-  _updateRuntimes: function() {
+  _updateRuntimes() {
     if (this._updatingPromise) {
       return this._updatingPromise;
     }
@@ -56,7 +56,7 @@ let Scanner = {
     return this._updatingPromise;
   },
 
-  _detectRuntimes: Task.async(function*(device) {
+  _detectRuntimes: Task.async(function* (device) {
     let model = yield device.getModel();
     let detectedRuntimes = yield FirefoxOSRuntime.detect(device, model);
     this._runtimes.push(...detectedRuntimes);
@@ -64,11 +64,11 @@ let Scanner = {
     this._runtimes.push(...detectedRuntimes);
   }),
 
-  scan: function() {
+  scan() {
     return this._updateRuntimes();
   },
 
-  listRuntimes: function() {
+  listRuntimes() {
     return this._runtimes;
   }
 
@@ -84,7 +84,7 @@ function Runtime(device, model, socketPath) {
 
 Runtime.prototype = {
   type: Runtimes.RuntimeTypes.USB,
-  connect: function(connection) {
+  connect(connection) {
     let port = ConnectionManager.getFreeTCPPort();
     let local = "tcp:" + port;
     let remote = "localfilesystem:" + this._socketPath;
@@ -103,7 +103,7 @@ function FirefoxOSRuntime(device, model) {
   Runtime.call(this, device, model, "/data/local/debugger-socket");
 }
 
-FirefoxOSRuntime.detect = Task.async(function*(device, model) {
+FirefoxOSRuntime.detect = Task.async(function* (device, model) {
   let runtimes = [];
   let query = "test -f /system/b2g/b2g; echo $?";
   let b2gExists = yield device.shell(query);
@@ -127,7 +127,7 @@ FirefoxOSRuntime.detect = Task.async(function*(device, model) {
 FirefoxOSRuntime.prototype = Object.create(Runtime.prototype);
 
 Object.defineProperty(FirefoxOSRuntime.prototype, "name", {
-  get: function() {
+  get() {
     return this._model || this.device.id;
   }
 });
@@ -137,7 +137,7 @@ function FirefoxOnAndroidRuntime(device, model, socketPath) {
 }
 
 // This requires Unix socket support from Firefox for Android (35+)
-FirefoxOnAndroidRuntime.detect = Task.async(function*(device, model) {
+FirefoxOnAndroidRuntime.detect = Task.async(function* (device, model) {
   let runtimes = [];
   // A matching entry looks like:
   // 00000000: 00000002 00000000 00010000 0001 01 6551588 /data/data/org.mozilla.fennec/firefox-debugger-socket
@@ -163,7 +163,7 @@ FirefoxOnAndroidRuntime.detect = Task.async(function*(device, model) {
 FirefoxOnAndroidRuntime.prototype = Object.create(Runtime.prototype);
 
 Object.defineProperty(FirefoxOnAndroidRuntime.prototype, "name", {
-  get: function() {
+  get() {
     let packageName = this._socketPath.split("/")[3];
     let channel;
     switch (packageName) {
