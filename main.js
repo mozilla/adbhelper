@@ -4,6 +4,8 @@
 
 "use strict";
 
+/* global adb, fastboot, Device */
+
 const { Cu } = require("chrome");
 
 const { defineLazyGetter } =

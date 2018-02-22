@@ -4,13 +4,13 @@
 
 // Wrapper around the fastboot utility.
 
-'use strict';
+"use strict";
 
 // Whether or not this script is being loaded as a CommonJS module
 // (from an add-on built using the Add-on SDK).  If it isn't a CommonJS Module,
 // then it's a JavaScript Module.
 
-const { Cc, Ci, Cu, Cr } = require("chrome");
+const { Ci, Cu } = require("chrome");
 const { Subprocess } = Cu.import("resource://gre/modules/Subprocess.jsm", {});
 const { setInterval, clearInterval } = Cu.import("resource://gre/modules/Timer.jsm", {});
 const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
@@ -42,7 +42,7 @@ const Fastboot = {
     let uri = "resource://adbhelperatmozilla.org/";
 
     let bin;
-    switch(platform) {
+    switch (platform) {
       case "Linux":
         let platform = XPCOMABI.indexOf("x86_64") == 0 ? "linux64" : "linux";
         bin = uri + platform + "/fastboot";
@@ -58,7 +58,7 @@ const Fastboot = {
         return;
     }
 
-    let url = Services.io.newURI(bin, null, null)
+    let url = Services.io.newURI(bin)
                       .QueryInterface(Ci.nsIFileURL);
     this._fastboot = url.file;
 
@@ -88,13 +88,13 @@ const Fastboot = {
     let callPayload = {
       command: binary,
       arguments: args,
-      stdout: function(data) {
+      stdout(data) {
         out_buffer.push(data);
       },
-      stderr: function(data) {
-        err_buffer.push(data)
+      stderr(data) {
+        err_buffer.push(data);
       },
-      done: function() {
+      done() {
         deferred.resolve({ stdout: out_buffer, stderr: err_buffer });
       }
     };
@@ -125,21 +125,21 @@ const Fastboot = {
         console.debug("Read devices from fastboot output", devices);
 
         for (let dev of devices) {
-          if (this.fastbootDevices.indexOf(dev) === -1) {
+          if (!this.fastbootDevices.includes(dev)) {
             added.push(dev);
           }
         }
 
-	console.debug("Fastboot devices added", added);
+        console.debug("Fastboot devices added", added);
 
         for (let dev of this.fastbootDevices) {
           // listed in previous devices and not in the current one
-          if (devices.indexOf(dev) === -1) {
+          if (!devices.includes(dev)) {
             removed.push(dev);
           }
         }
 
-	console.debug("Fastboot devices removed", removed);
+        console.debug("Fastboot devices removed", removed);
 
         this.fastbootDevices = devices;
 
@@ -188,10 +188,11 @@ const Fastboot = {
         console.debug("getvar", data);
         // product: D6603finished. total time: 0.003s
         for (let line of data.stderr.join("\n").split("\n")) {
-          if (line.indexOf(":") !== -1) {
+          if (line.includes(":")) {
             return line.split(":")[1].trim();
           }
         }
+        return "";
       }, function onError(error) {
         console.debug("error getvar", error);
         return "";
@@ -218,21 +219,21 @@ const Fastboot = {
         };
 
         console.debug("fastboot flash reported:", data);
-        let fullOutput = data.stderr.join("\n").split("\n")
+        let fullOutput = data.stderr.join("\n").split("\n");
 
         console.debug("Will look into", fullOutput);
         for (let line of fullOutput) {
           console.debug("Read:", line);
-          if (!line || line.indexOf(" ") === -1) {
+          if (!line || !line.includes(" ")) {
             console.debug("No space ...");
             continue;
           }
 
           let first = line.split(" ")[0];
           console.debug("Checking with:", first);
-          switch(first) {
-            case "sending":   flashProgress.sending = true; break;
-            case "writing":   flashProgress.writing = true; break;
+          switch (first) {
+            case "sending": flashProgress.sending = true; break;
+            case "writing": flashProgress.writing = true; break;
             case "finished.": flashProgress.finished = true; break;
             case "OKAY":
               if (flashProgress.sending && !flashProgress.writing) {
@@ -257,11 +258,11 @@ const Fastboot = {
   reboot: function fastboot_reboot(serial) {
     return this.do(["reboot"], serial);
   }
-}
+};
 
 Fastboot.init();
 
-/// Fastboot object
+// Fastboot object
 function FastbootDevice(id) {
   this.id = id;
 }

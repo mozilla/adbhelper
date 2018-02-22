@@ -26,7 +26,7 @@ Device.prototype = {
    * that interact with other kinds of devices should likely use the more
    * general |forwardPort| method directly.
    */
-  connect: function (remotePort) {
+  connect(remotePort) {
     let port = ConnectionManager.getFreeTCPPort();
     let local = "tcp:" + port;
     let remote = "localfilesystem:/data/local/debugger-socket";
@@ -47,22 +47,21 @@ Device.prototype = {
   rebootRecovery: adb.rebootRecovery.bind(adb),
   rebootBootloader: adb.rebootBootloader.bind(adb),
 
-  isRoot: function() {
+  isRoot() {
     return adb.shell("id").then(stdout => {
       if (stdout) {
         let uid = stdout.match(/uid=(\d+)/)[1];
         return uid == "0";
-      } else {
-        return false;
       }
+      return false;
     });
   },
 
-  summonRoot: function() {
+  summonRoot() {
     return adb.root();
   },
 
-  getModel: function() {
+  getModel() {
     if (this._modelPromise) {
       return this._modelPromise;
     }

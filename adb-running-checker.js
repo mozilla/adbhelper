@@ -8,10 +8,9 @@
  * Modified from adb-file-transfer from original ADB
  */
 
-'use strict';
+"use strict";
 
-const { Cu, Cc, Ci } = require("chrome");
-
+const { Cu } = require("chrome");
 const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
 const client = require("./adb-client");
 
@@ -24,12 +23,12 @@ exports.check = function check() {
 
   let runFSM = function runFSM(aData) {
     console.debug("runFSM " + state);
-    switch(state) {
+    switch (state) {
       case "start":
         let req = client.createRequest("host:version");
         socket.send(req);
         state = "wait-version";
-        break
+        break;
       case "wait-version":
         // TODO: Actually check the version number to make sure the daemon
         //       supports the commands we want to use
@@ -60,7 +59,7 @@ exports.check = function check() {
       console.debug("running checker onopen");
       state = "start";
       runFSM();
-    }
+    };
 
     socket.s.onclose = function(aEvent) {
       console.debug("running checker onclose");

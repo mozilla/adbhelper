@@ -7,12 +7,10 @@
  * Mostly from original `adb.js`
  */
 
-'use strict';
+"use strict";
 
-const { Cu, Cc, Ci } = require("chrome");
+const { Cu } = require("chrome");
 const { AdbSocket } = require("./adb-socket");
-
-Cu.import("resource://gre/modules/Services.jsm");
 
 // Starting with FF57, jsm share the same global and this require pulling it from it.
 const { TextEncoder, TextDecoder } =
@@ -42,14 +40,14 @@ function unpackPacket(aPacket, aIgnoreResponse) {
   let decoder = new TextDecoder();
   let length = parseInt(decoder.decode(lengthView), 16);
   let text = new Uint8Array(buffer, aIgnoreResponse ? 4 : 8, length);
-  return { length: length, data: decoder.decode(text) };
+  return { length, data: decoder.decode(text) };
 }
 
 // Checks if the response is expected (defaults to OKAY).
 // @return true if response equals expected.
 function checkResponse(aPacket, aExpected = OKAY) {
   let buffer = getBuffer(aPacket);
-  let view = new Uint32Array(buffer, 0 , 1);
+  let view = new Uint32Array(buffer, 0, 1);
   if (view[0] == FAIL) {
     console.debug("Response: FAIL");
   }
@@ -63,7 +61,7 @@ function checkResponse(aPacket, aExpected = OKAY) {
 // @return A 8 bit typed array.
 function createRequest(aCommand) {
   let length = aCommand.length.toString(16).toUpperCase();
-  while(length.length < 4) {
+  while (length.length < 4) {
     length = "0" + length;
   }
 
@@ -85,12 +83,12 @@ function connect() {
 }
 
 let client = {
-  getBuffer: getBuffer,
-  unpackPacket: unpackPacket,
-  checkResponse: checkResponse,
-  createRequest: createRequest,
-  connect: connect,
-  close: close
+  getBuffer,
+  unpackPacket,
+  checkResponse,
+  createRequest,
+  connect,
+  close
 };
 
 module.exports = client;
