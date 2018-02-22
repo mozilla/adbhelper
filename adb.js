@@ -13,6 +13,7 @@
 const { Cc, Ci, Cu } = require("chrome");
 const events = require("./events");
 const client = require("./adb-client");
+const { getFileForBinary } = require("./binary-manager");
 const { setTimeout } = Cu.import("resource://gre/modules/Timer.jsm", {});
 const { Subprocess } = Cu.import("resource://gre/modules/Subprocess.jsm", {});
 const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
@@ -20,8 +21,6 @@ const env = Cc["@mozilla.org/process/environment;1"].
               getService(Ci.nsIEnvironment);
 const { OS } = require("resource://gre/modules/osfile.jsm");
 const { Services } = Cu.import("resource://gre/modules/Services.jsm", {});
-
-const {XPCOMABI} = Services.appinfo;
 
 // When loaded as a CommonJS module, get the TextEncoder and TextDecoder
 // interfaces from the Services JavaScript Module, since they aren't defined
@@ -56,75 +55,54 @@ const ADB = {
     ready = newVal;
   },
 
-  init: function adb_init() {
-    console.log("init");
-    let platform = Services.appinfo.OS;
-
-    let uri = "resource://adbhelperatmozilla.org/";
-
-    let bin;
-    switch (platform) {
-      case "Linux":
-        let platform = XPCOMABI.indexOf("x86_64") == 0 ? "linux64" : "linux";
-        bin = uri + platform + "/adb";
-        break;
-      case "Darwin":
-        bin = uri + "mac64/adb";
-        break;
-      case "WINNT":
-        bin = uri + "win32/adb.exe";
-        break;
-      default:
-        console.log("Unsupported platform : " + platform);
-        return;
+  get adbFilePromise() {
+    if (this._adbFilePromise) {
+      return this._adbFilePromise;
     }
-
-    let url = Services.io.newURI(bin).QueryInterface(Ci.nsIFileURL);
-    this._adb = url.file;
+    this._adbFilePromise = getFileForBinary("adb");
+    return this._adbFilePromise;
   },
 
   // We startup by launching adb in server mode, and setting
   // the tcp socket preference to |true|
-  start: function adb_start() {
-    let deferred = PromiseUtils.defer();
+  start() {
+    return new Promise(async (resolve, reject) => {
+      let onSuccessfulStart = () => {
+        Services.obs.notifyObservers(null, "adb-ready");
+        this.ready = true;
+        resolve();
+      };
 
-    let onSuccessfulStart = (function onSuccessfulStart() {
-      Services.obs.notifyObservers(null, "adb-ready");
-      this.ready = true;
-      deferred.resolve();
-    }).bind(this);
+      let isAdbRunning = await require("./adb-running-checker").check();
+      if (isAdbRunning) {
+        this.didRunInitially = false;
+        console.log("Found ADB process running, not restarting");
+        onSuccessfulStart();
+        return;
+      }
+      console.log("Didn't find ADB process running, restarting");
 
-    require("./adb-running-checker").check().then((function(isAdbRunning) {
-        if (isAdbRunning) {
-          this.didRunInitially = false;
-          console.log("Found ADB process running, not restarting");
-          onSuccessfulStart();
-          return;
+      this.didRunInitially = true;
+      let process = Cc["@mozilla.org/process/util;1"]
+                      .createInstance(Ci.nsIProcess);
+      let adbFile = await this.adbFilePromise;
+      process.init(adbFile);
+      let params = ["start-server"];
+      let self = this;
+      process.runAsync(params, params.length, {
+        observe(aSubject, aTopic, aData) {
+          switch (aTopic) {
+            case "process-finished":
+              onSuccessfulStart();
+              break;
+            case "process-failed":
+              self.ready = false;
+              reject();
+              break;
+          }
         }
-        console.log("Didn't find ADB process running, restarting");
-
-        this.didRunInitially = true;
-        let process = Cc["@mozilla.org/process/util;1"]
-                        .createInstance(Ci.nsIProcess);
-        process.init(this._adb);
-        let params = ["start-server"];
-        let self = this;
-        process.runAsync(params, params.length, {
-          observe(aSubject, aTopic, aData) {
-            switch (aTopic) {
-              case "process-finished":
-                onSuccessfulStart();
-                break;
-              case "process-failed":
-                self.ready = false;
-                deferred.reject();
-                break;
-             }
-           }
-        }, false);
-      }).bind(this));
-
-    return deferred.promise;
+      }, false);
+    });
   },
 
   /**
@@ -146,7 +124,7 @@ const ADB = {
    * Kill the ADB server.  We do this by running ADB again, passing it
    * the "kill-server" argument.
    *
-   * @param {Boolean} aSync
+   * @param {Boolean} sync
    *        Whether or not to kill the server synchronously.  In general,
    *        this should be false.  But on Windows, an add-on may fail to update
    *        if its copy of ADB is running when Firefox tries to update it.
@@ -154,13 +132,14 @@ const ADB = {
    *        beforehand should do so synchronously on Windows to make sure
    *        the update doesn't race the killing.
    */
-  kill: function adb_kill(aSync) {
+  async kill(sync) {
     let process = Cc["@mozilla.org/process/util;1"]
                     .createInstance(Ci.nsIProcess);
-    process.init(this._adb);
+    let adbFile = await this.adbFilePromise;
+    process.init(adbFile);
     let params = ["kill-server"];
 
-    if (aSync) {
+    if (sync) {
       process.run(true, params, params.length);
       console.log("adb kill-server: " + process.exitValue);
       this.ready = false;
@@ -1036,7 +1015,5 @@ const ADB = {
     return deferred.promise;
   }
 };
-
-ADB.init();
 
 module.exports = ADB;

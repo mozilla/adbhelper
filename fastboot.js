@@ -10,18 +10,12 @@
 // (from an add-on built using the Add-on SDK).  If it isn't a CommonJS Module,
 // then it's a JavaScript Module.
 
-const { Ci, Cu } = require("chrome");
+const { Cu } = require("chrome");
 const { Subprocess } = Cu.import("resource://gre/modules/Subprocess.jsm", {});
 const { setInterval, clearInterval } = Cu.import("resource://gre/modules/Timer.jsm", {});
 const { PromiseUtils } = Cu.import("resource://gre/modules/PromiseUtils.jsm", {});
-
-Cu.import("resource://gre/modules/Services.jsm");
-
-const { XPCOMABI } = Services.appinfo;
-
-Cu.import("resource://gre/modules/osfile.jsm");
-
-let { Devices } =
+const { getFileForBinary } = require("./binary-manager");
+const { Devices } =
   require("./devtools-import")("resource://devtools/shared/apps/Devices.jsm");
 
 let fastbootTimer = null;
@@ -35,47 +29,15 @@ const Fastboot = {
     fastbootDevices = newVal;
   },
 
-  init: function fastboot_init() {
-    console.log("fastboot init");
-    let platform = Services.appinfo.OS;
-
-    let uri = "resource://adbhelperatmozilla.org/";
-
-    let bin;
-    switch (platform) {
-      case "Linux":
-        let platform = XPCOMABI.indexOf("x86_64") == 0 ? "linux64" : "linux";
-        bin = uri + platform + "/fastboot";
-        break;
-      case "Darwin":
-        bin = uri + "mac64/fastboot";
-        break;
-      case "WINNT":
-        bin = uri + "win32/fastboot.exe";
-        break;
-      default:
-        console.log("Unsupported platform : " + platform);
-        return;
+  get fastbootFilePromise() {
+    if (this._fastbootFilePromise) {
+      return this._fastbootFilePromise;
     }
-
-    let url = Services.io.newURI(bin)
-                      .QueryInterface(Ci.nsIFileURL);
-    this._fastboot = url.file;
-
-    if (!this._fastboot.exists()) {
-      console.debug("Fastboot", this._fastboot, "do not exists :(");
-      return;
-    }
-
-    if (!this._fastboot.isExecutable()) {
-      console.debug("Fastboot", this._fastboot, "is not executable :(");
-      return;
-    }
-
-    console.log("Fastboot", this._fastboot, "exists and is executable ...");
+    this._fastbootFilePromise = getFileForBinary("fastboot");
+    return this._fastbootFilePromise;
   },
 
-  do: function fastboot_do(args, serial) {
+  async do(args, serial) {
     let deferred = PromiseUtils.defer();
     let out_buffer = [];
     let err_buffer = [];
@@ -84,7 +46,7 @@ const Fastboot = {
       args.unshift("-s", serial);
     }
 
-    let binary = this._fastboot;
+    let binary = await this.fastbootFilePromise;
     let callPayload = {
       command: binary,
       arguments: args,
@@ -259,8 +221,6 @@ const Fastboot = {
     return this.do(["reboot"], serial);
   }
 };
-
-Fastboot.init();
 
 // Fastboot object
 function FastbootDevice(id) {

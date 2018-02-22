@@ -14,18 +14,19 @@ Cu.import("resource://gre/modules/Services.jsm");
 const REASON = [ "unknown", "startup", "shutdown", "enable", "disable",
                  "install", "uninstall", "upgrade", "downgrade" ];
 
-// Usefull piece of code from :bent
+// Useful piece of code from :bent
 // http://mxr.mozilla.org/mozilla-central/source/dom/workers/test/extensions/bootstrap/bootstrap.js
 function registerAddonResourceHandler(data) {
   let file = data.installPath;
-  let fileuri = file.isDirectory() ?
-                Services.io.newFileURI(file) :
-                Services.io.newURI("jar:" + file.path + "!/");
+  let fileURI = Services.io.newFileURI(file);
+  if (!file.isDirectory()) {
+    fileURI = Services.io.newURI("jar:" + fileURI.spec + "!/");
+  }
   let resourceName = encodeURIComponent(data.id.replace("@", "at"));
 
   Services.io.getProtocolHandler("resource").
               QueryInterface(Ci.nsIResProtocolHandler).
-              setSubstitution(resourceName, fileuri);
+              setSubstitution(resourceName, fileURI);
 
   return "resource://" + resourceName + "/";
 }
@@ -120,6 +121,9 @@ function startup(data, reason) {
   loader = Loader(loaderOptions);
   let require_ = Require(loader, { id: "./addon" });
   mainModule = require_("./main");
+
+  // TODO: debugging, remove?
+  this.require = require_;
 }
 
 function shutdown(data, reasonCode) {
