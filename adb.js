@@ -87,6 +87,14 @@ const ADB = {
                       .createInstance(Ci.nsIProcess);
       let adbFile = await this.adbFilePromise;
       process.init(adbFile);
+      // Hide command prompt window on Windows
+      try {
+        // startHidden is 55+
+        process.startHidden = true;
+        // noShell attribute is 58+
+        process.noShell = true;
+      } catch (e) {
+      }
       let params = ["start-server"];
       let self = this;
       process.runAsync(params, params.length, {
@@ -137,6 +145,14 @@ const ADB = {
                     .createInstance(Ci.nsIProcess);
     let adbFile = await this.adbFilePromise;
     process.init(adbFile);
+    // Hide command prompt window on Windows
+    try {
+      // startHidden is 55+
+      process.startHidden = true;
+      // noShell attribute is 58+
+      process.noShell = true;
+    } catch (e) {
+    }
     let params = ["kill-server"];
 
     if (sync) {
