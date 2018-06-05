@@ -87,7 +87,12 @@ Runtime.prototype = {
   connect(connection) {
     let port = ConnectionManager.getFreeTCPPort();
     let local = "tcp:" + port;
-    let remote = "localfilesystem:" + this._socketPath;
+    let remote;
+    if (this._socketPath.startsWith("@")) {
+        remote = "localabstract:" + this._socketPath.substring(1);
+    } else {
+        remote = "localfilesystem:" + this._socketPath;
+    }
     return this.device.forwardPort(local, remote).then(() => {
       connection.host = "localhost";
       connection.port = port;
