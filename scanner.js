@@ -169,7 +169,13 @@ FirefoxOnAndroidRuntime.prototype = Object.create(Runtime.prototype);
 
 Object.defineProperty(FirefoxOnAndroidRuntime.prototype, "name", {
   get() {
-    let packageName = this._socketPath.split("/")[3];
+    // If using abstract socket address, it is "@org.mozilla.firefox/..."
+    // If using path base socket, it is "/data/data/<package>...""
+    // Until Fennec 62 only supports path based UNIX domain socket, but
+    // Fennec 63+ supports both path based and abstract socket.
+    const packageName = this._socketPath.startsWith("@") ?
+                        this._socketPath.substr(1).split("/")[0] :
+                        this._socketPath.split("/")[3];
     let channel;
     switch (packageName) {
       case "org.mozilla.firefox":
