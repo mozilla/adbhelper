@@ -1,6 +1,6 @@
 FILES=adb.js adb-*.js binary-manager.js bootstrap.js device.js devtools-import.js devtools-require.js events.js fastboot.js main.js scanner.js unload.js
 ADDON_NAME=adbhelper
-ADDON_VERSION=0.12.1
+ADDON_VERSION=0.12.2pre
 XPI_NAME=$(ADDON_NAME)-$(ADDON_VERSION)
 
 REMOTE_ROOT_PATH=/pub/labs/fxos-simulator/adb-helper/
